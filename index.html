@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="台股起漲雷達" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🇹🇼 台股起漲波傻瓜篩選器 & 趨勢教學儀表板</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+
+    :root {
+      --background: #0f172a;
+      --card: #1e293b;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --border: #334155;
+      --primary: #ef4444;
+      --primary-foreground: #ffffff;
+      --secondary: #334155;
+      --secondary-foreground: #f8fafc;
+    }
+    html.light {
+      --background: #f8fafc;
+      --card: #ffffff;
+      --foreground: #0f172a;
+      --muted-foreground: #64748b;
+      --border: #e2e8f0;
+      --primary: #dc2626;
+      --primary-foreground: #ffffff;
+      --secondary: #f1f5f9;
+      --secondary-foreground: #0f172a;
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .tab-active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-weight: 600;
+    }
+    .filter-active {
+      border-color: var(--primary);
+      background: var(--secondary);
+      font-weight: 600;
+    }
+    .stock-row-active {
+      border-left: 4px solid #ef4444;
+      background: var(--secondary);
+    }
+  </style>
+  <link rel="manifest" href="./manifest.json" />
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-6">
+  <div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- CLOUD_TOOLBAR_START -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded-full font-bold bg-red-500/15 text-red-500 border border-red-500/30">☁️ 雲端每日自動掃描版</span>
+        <span class="text-[var(--muted-foreground)]">最後自動更新：<strong>2026-11-20 18:37</strong>（每交易日 14:40 & 17:15 自動重掃全台股）</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="toggleTheme()" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold hover:bg-[var(--secondary)] transition">
+          🌓 深色 / 淺色
+        </button>
+      </div>
+    </div>
+    <!-- CLOUD_TOOLBAR_END -->
+    <!-- Header Banner -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-500 border border-red-500/30">台股專用・紅漲綠跌</span>
+          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--secondary)] text-[var(--muted-foreground)]">全台股 1,973 檔掃描 (截至 2026-11-20)</span>
+        </div>
+        <h1 class="text-xl md:text-2xl font-bold mt-2">🇹🇼 全台股「起漲波」傻瓜雷達 & 趨勢判斷教學軟體</h1>
+        <p class="text-sm text-[var(--muted-foreground)] mt-1">
+          不看複雜財報術語！用 4 個白話數據抓出「底部壓縮 ＋ 帶量站上 20MA 月線」的起漲第一波，並自動幫你算好停損價。
+        </p>
+      </div>
+      <!-- Main Navigation Tabs -->
+      <div class="flex flex-wrap gap-2 bg-[var(--background)] p-1.5 rounded-xl border border-[var(--border)] self-start">
+        <button id="tabBtn-screener" onclick="switchTab('screener')" class="px-3.5 py-2 rounded-lg text-sm transition tab-active">
+          🎯 傻瓜起漲篩選器
+        </button>
+        <button id="tabBtn-academy" onclick="switchTab('academy')" class="px-3.5 py-2 rounded-lg text-sm transition text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+          🎓 趨勢判斷實戰教學 (4堂課)
+        </button>
+        <button id="tabBtn-diy" onclick="switchTab('diy')" class="px-3.5 py-2 rounded-lg text-sm transition text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+          🛠️ 自選股體檢 & DIY 指南
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 1: SCREENER ==================== -->
+    <div id="tab-screener" class="space-y-4">
+      <div id="fullMarketBanner" class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/15 text-red-500 border border-red-500/30">🌐 全市場掃描雷達</span>
+            <span class="font-semibold text-sm">已掃描全台股 <strong>1,973 檔</strong>（上市 1,090 檔 ＋ 上櫃 883 檔）</span>
+          </div>
+          <span class="text-xs font-medium text-[var(--muted-foreground)]">❄️ 空頭大回檔日（資金防禦優先，僅精選極少數逆勢抗跌起漲股）</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2.5 text-xs">
+          <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-[var(--muted-foreground)]">① 全市場掃描總數</div>
+            <div class="text-base font-bold mt-0.5">1,973 檔</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-[var(--muted-foreground)]">② 過濾殭屍股 (≥500張)</div>
+            <div class="text-base font-bold mt-0.5">820 檔</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-[var(--muted-foreground)]">③ 今日全市場漲跌家數</div>
+            <div class="text-base font-bold mt-0.5"><span class="text-red-500">漲 116</span> / <span class="text-emerald-500">跌 1812</span></div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div class="text-[var(--muted-foreground)]">④ 6個月日K深度精算</div>
+            <div class="text-base font-bold mt-0.5">Top 98 檔強勢候選</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30">
+            <div class="text-red-500 font-semibold">⑤ 篩出起漲＋蓄勢黑馬</div>
+            <div class="text-base font-bold text-red-500 mt-0.5">起漲 4 檔 / 蓄勢 14 檔</div>
+          </div>
+        </div>
+      </div>
+      <!-- Filter Bar -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex flex-wrap gap-2" id="categoryFilters">
+            <button onclick="setFilter('all')" data-filter="all" class="filter-btn filter-active px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              全市場精選 (29)
+            </button>
+            <button onclick="setFilter('breakout')" data-filter="breakout" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              🔥 剛起漲・帶量突破 (4)
+            </button>
+            <button onclick="setFilter('squeeze')" data-filter="squeeze" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ⏳ 底部收斂・蓄勢待發 (14)
+            </button>
+            <button onclick="setFilter('overextended')" data-filter="overextended" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ⚠️ 強勢但乖離過大・勿追高 (3)
+            </button>
+            <button onclick="setFilter('downtrend')" data-filter="downtrend" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ❄️ 跌破生命線・空頭觀望 (7)
+            </button>
+          </div>
+          <div class="text-xs text-[var(--muted-foreground)]">
+            💡 點擊左側任一檔股票，右側立即展開「背後支持數據」與「互動K線圖」
+          </div>
+        </div>
+      </div>
+
+      <!-- Master-Detail Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <!-- Left Column: Simple Stock List (5 cols) -->
+        <div class="lg:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
+          <div class="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--secondary)]">
+            <span class="font-semibold text-sm">台股篩選清單（點擊查看背後數據）</span>
+            <span class="text-xs text-[var(--muted-foreground)]" id="listCountLabel">共 18 檔</span>
+          </div>
+          <div id="stockListContainer" class="divide-y divide-[var(--border)] max-h-[720px] overflow-y-auto custom-scroll">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Right Column: Supporting Data Drill-down Panel (7 cols) -->
+        <div class="lg:col-span-7 space-y-4" id="detailPanel">
+          <div class="lg:hidden flex justify-between items-center">
+            <button type="button" onclick="document.getElementById('stockListContainer').scrollIntoView({behavior:'smooth'})" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] text-xs font-semibold">
+              ⬆️ 回到股票清單
+            </button>
+            <span class="text-xs text-[var(--muted-foreground)]">👆 可用手指在 K 線圖上滑動查價</span>
+          </div>
+          <!-- Stock Summary Header & Plain-Language Diagnosis -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span id="detCodeName" class="text-xl font-bold">2454 聯發科</span>
+                  <span id="detSector" class="px-2 py-0.5 text-xs rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">IC設計</span>
+                  <span id="detCatBadge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full">🔥 剛起漲・帶量突破</span>
+                </div>
+                <p id="detDateLabel" class="text-xs text-[var(--muted-foreground)] mt-1">資料日期：2026-11-13 收盤</p>
+              </div>
+              <div class="text-right">
+                <div class="flex items-baseline justify-end gap-2">
+                  <span id="detPrice" class="text-2xl font-bold">4120.0</span>
+                  <span id="detChg" class="text-sm font-semibold">+270.0 (+7.01%)</span>
+                </div>
+                <div class="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  起漲結構評分：<strong id="detScore" class="text-sm text-[var(--foreground)]">88 / 100</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Plain-Language Diagnosis Box -->
+            <div id="detDiagnosisBox" class="p-3.5 rounded-lg border text-sm leading-relaxed">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Interactive Candlestick + MA + Bollinger + Volume Chart -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-semibold text-sm">📈 近 45 交易日 K 線・均線生命線・成交量結構圖</h3>
+                <p id="chartHoverInfo" class="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  滑鼠移至圖表上可檢視當日「開高低收、成交量(張)、20MA月線、60MA季線」
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 text-xs">
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkMA20" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>20MA(月線)
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkMA60" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>60MA(季線)
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkBB" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-purple-400"></span>布林收斂通道
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkStop" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>停損/目標線
+                </label>
+              </div>
+            </div>
+            <div class="relative w-full">
+              <canvas id="stockCanvas" width="720" height="340" class="w-full h-[320px] rounded-lg border border-[var(--border)] cursor-crosshair"></canvas>
+            </div>
+          </div>
+
+          <!-- 4 Supporting Data Cards (Why this stock is or isn't breaking out) -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-base">🔍 點開看背後支持數據（四大起漲條件白話健檢）</h3>
+              <span class="text-xs text-[var(--muted-foreground)]">不靠感覺，每項數據都有明確合格門檻</span>
+            </div>
+            <div id="supportCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Anti-Loss Discipline Calculator (2x ATR Trailing Stop & Risk/Reward) -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-semibold text-base">🛡️ 防賠錢紀律計算機（解決「賺小賠大」的關鍵）</h3>
+                <p class="text-xs text-[var(--muted-foreground)]">根據該股近14日真實波動度 (ATR) 與 20MA 生命線，自動算好進場後的停損價與波段目標價</p>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span>預計投入本金(NT$)：</span>
+                <input id="capitalInput" type="number" value="200000" step="10000" onchange="renderDetail()" class="w-28 px-2.5 py-1 rounded border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] text-xs font-semibold" />
+              </div>
+            </div>
+            <div id="riskCalcGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: INTERACTIVE TREND ACADEMY ==================== -->
+    <div id="tab-academy" class="hidden space-y-5">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold">🎓 台股趨勢判斷實戰教學（點擊切換 4 大核心圖解課）</h2>
+            <p class="text-sm text-[var(--muted-foreground)]">
+              為什麼散戶總是「一買就套、一賣就飆」？這 4 堂互動圖解課幫你建立正確的「起漲波」視覺直覺。
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2" id="lessonButtons">
+            <button onclick="selectLesson(0)" class="lesson-btn filter-active px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第1課：真起漲 vs 假突破
+            </button>
+            <button onclick="selectLesson(1)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第2課：20MA生命線與乖離率
+            </button>
+            <button onclick="selectLesson(2)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第3課：VCP底部波動收斂
+            </button>
+            <button onclick="selectLesson(3)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第4課：停損紀律與期望值模擬
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start pt-2">
+          <!-- Interactive Diagram Canvas (7 cols) -->
+          <div class="lg:col-span-7 bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 id="lessonChartTitle" class="font-semibold text-sm">圖解示範：底部帶量真突破 vs 高檔爆量假突破</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">紅K＝上漲｜綠K＝下跌</span>
+            </div>
+            <canvas id="lessonCanvas" width="680" height="320" class="w-full h-[300px] rounded-lg border border-[var(--border)]"></canvas>
+            <p id="lessonChartCaption" class="text-xs text-[var(--muted-foreground)] leading-relaxed"></p>
+          </div>
+
+          <!-- Lesson Text & Trap Comparison (5 cols) -->
+          <div class="lg:col-span-5 space-y-3" id="lessonContentBox">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Expectancy Simulator (Why cutting losses makes you profitable) -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <h3 class="font-bold text-base">🧮 互動實驗室：為什麼「不設停損」就算勝率 70% 也會賠光？（親手拉動滑桿試算）</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>選股勝率 (Win Rate)</span>
+              <strong id="simWinRateVal">50%</strong>
+            </div>
+            <input id="simWinRate" type="range" min="30" max="80" step="5" value="50" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">職業操盤手的突破策略勝率通常也只有 45%~55%！</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>看對時平均獲利 (%)</span>
+              <strong id="simAvgWinVal" class="text-red-500">+16%</strong>
+            </div>
+            <input id="simAvgWin" type="range" min="3" max="35" step="1" value="16" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">散戶常賺 4% 就跑；贏家沿 20MA 抱波段賺 15%~25%。</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>看錯時停損幅度 (%)</span>
+              <strong id="simAvgLossVal" class="text-emerald-500">-6%</strong>
+            </div>
+            <input id="simAvgLoss" type="range" min="3" max="30" step="1" value="6" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">散戶凹單常賠 -25%；贏家跌破 20MA 在 -5%~-7% 砍單。</p>
+          </div>
+        </div>
+        <div id="simResultBanner" class="p-4 rounded-xl border text-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: DIY CHECKER & FREE TOOLS GUIDE ==================== -->
+    <div id="tab-diy" class="hidden space-y-5">
+      <!-- Instant Custom Stock Checker -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-lg font-bold">🩺 台股自選股「起漲波」5 秒快篩計算機</h2>
+          <p class="text-sm text-[var(--muted-foreground)]">
+            打開你的手機看盤軟體（三竹股市 / Yahoo股市），輸入你想買的那檔台股目前 5 個數字，立即幫你判斷「能不能買、停損設哪裡」！
+          </p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">股票代號/名稱</label>
+            <input id="diyName" type="text" value="2330 台積電" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">目前股價 (元)</label>
+            <input id="diyPrice" type="number" step="0.5" value="2350" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">20MA 月線價 (元)</label>
+            <input id="diyMA20" type="number" step="0.5" value="2310" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">60MA 季線價 (元)</label>
+            <input id="diyMA60" type="number" step="0.5" value="2240" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">今日成交量 (張)</label>
+            <input id="diyVol" type="number" value="42000" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">20日均量 (張)</label>
+            <input id="diyVMA20" type="number" value="25000" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+        </div>
+        <button onclick="runDiyCheck()" class="px-4 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-semibold hover:opacity-90 transition">
+          ⚡ 立即診斷這檔股票是不是「真起漲波」
+        </button>
+        <div id="diyResultBox" class="p-4 rounded-xl border border-[var(--border)] bg-[var(--background)] text-sm space-y-2">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Free Taiwan Stock Tools & Google Sheets Template -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+          <h3 class="font-bold text-base">🌐 台灣現成免費「抓起漲」網站推薦（免寫程式）</h3>
+          <ul class="space-y-2.5 text-sm">
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>1. 玩股網 (Wantgoo) / 嗨投資 (HiStock) 免費飆股搜尋</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                內建「均線糾結突破」、「爆量長紅」、「外資投信同買」勾選器，完全免費、介面最直覺，適合每天盤後花 3 分鐘勾選。
+              </p>
+            </li>
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>2. TradingView（免費版「股票篩選器」選台灣市場）</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                看 K 線與畫頸線最清楚的免費軟體！可在篩選器設定「價格穿越 20SMA」＋「相對成交量 > 1.5」，點開就能直接看漂亮圖表。
+              </p>
+            </li>
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>3. Goodinfo! 台灣股市資訊網 / 財報狗 (StatementDog)</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                Goodinfo 免費提供最細的籌碼與布林帶寬篩選；財報狗則適合點開檢查「月營收年增率是否剛轉正（基本面起漲）」。
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+          <h3 class="font-bold text-base">📊 用 Google 試算表免費自製「台股起漲自動監控表」</h3>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            Google Sheets 內建免費的 <code>GOOGLEFINANCE</code> 函數，支援台股代號（格式：<code>TPE:2330</code>），打開 Google 試算表貼上以下公式即可自動更新：
+          </p>
+          <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] font-mono text-xs space-y-2 overflow-x-auto">
+            <div><span class="text-[var(--muted-foreground)]"># 1. 抓台積電目前現價：</span><br/>=GOOGLEFINANCE("TPE:2330", "price")</div>
+            <div><span class="text-[var(--muted-foreground)]"># 2. 抓今日成交量 vs 20日平均量：</span><br/>=GOOGLEFINANCE("TPE:2330", "volume")</div>
+            <div><span class="text-[var(--muted-foreground)]"># 3. 抓過去 60 天日 K 收盤價算 20MA 月線：</span><br/>=AVERAGE(INDEX(GOOGLEFINANCE("TPE:2330","close",TODAY()-35,TODAY()),0,2))</div>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+            💡 <strong>更簡單的方法</strong>：這份網頁已連結 GitHub Actions，每個交易日下午收盤後會<strong>自動掃描全台股 ~1,970+ 檔上市櫃股票</strong>並更新本網頁！用 iPhone Safari 打開後點「分享 ➔ 加入主畫面」即可隨時躺沙發看最新起漲波。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Embedded Real Taiwan Stock Data (18 stocks, 45 trading days up to 2026-11-13)
+    const STOCKS_DATA = [{"code":"5457","name":"宣德","sector":"上櫃","cat":"breakout","cat_label":"🔥 全市場篩出・帶量起漲","score":98,"date":"2026-11-20","close":23.75,"chg":2.15,"chg_pct":9.95,"vol":6198,"vma20":1350,"vol_ratio":4.59,"vol_ratio_3d":8.44,"ma5":21.72,"ma20":21.43,"ma60":23.86,"ma20_slope":-1.47,"ma60_slope":-1.81,"bias20":10.83,"pre_bb_w":9.7,"curr_bb_w":25.7,"rsi14":55.0,"rs_vs_0050":24.95,"atr14":1.67,"stop_loss":20.74,"stop_pct":-12.67,"target_2r":30.37,"target_pct":27.87,"b":[["09-14",26.0,26.0,24.5,24.5,694,27.09,29.71,28.71,25.47,322],["09-15",24.5,24.85,24.15,24.4,622,26.96,29.5,28.96,24.96,336],["09-16",24.6,24.75,24.05,24.45,408,26.85,29.31,29.13,24.57,341],["09-17",24.8,24.8,24.5,24.75,258,26.73,29.11,29.18,24.28,345],["09-18",24.95,24.95,23.3,23.3,4508,26.53,28.9,29.38,23.68,560],["09-21",23.5,25.1,23.5,24.0,2438,26.39,28.73,29.44,23.34,668],["09-22",24.2,24.3,23.6,23.8,761,26.21,28.57,29.43,22.99,698],["09-23",23.9,24.45,23.9,24.4,486,26.08,28.41,29.37,22.79,709],["09-24",24.3,24.35,23.75,23.85,414,25.89,28.24,29.23,22.55,702],["09-29",23.9,23.9,23.4,23.5,520,25.66,28.06,29.01,22.31,710],["09-30",23.65,24.35,23.6,24.35,545,25.48,27.89,28.7,22.26,724],["10-01",24.5,24.65,23.85,23.9,396,25.28,27.71,28.37,22.19,724],["10-02",24.0,24.6,23.8,24.4,473,25.11,27.55,27.96,22.26,737],["10-05",24.8,24.8,24.0,24.0,508,24.92,27.38,27.54,22.3,750],["10-06",24.45,24.7,24.0,24.3,428,24.75,27.23,27.07,22.43,764],["10-07",24.35,24.5,23.3,23.85,1754,24.59,27.1,26.64,22.54,838],["10-08",23.85,24.05,23.3,23.3,704,24.41,26.98,26.29,22.53,855],["10-12",22.85,23.2,21.85,23.2,890,24.24,26.84,25.86,22.62,886],["10-13",23.2,23.2,22.45,22.95,450,24.05,26.7,25.31,22.79,898],["10-14",23.0,23.5,22.95,23.5,302,23.93,26.6,24.92,22.94,877],["10-15",23.2,23.45,22.7,22.85,544,23.85,26.49,24.91,22.79,870],["10-16",23.0,23.45,22.9,23.3,387,23.8,26.37,24.86,22.74,858],["10-19",23.0,23.1,22.65,22.85,236,23.72,26.25,24.81,22.63,850],["10-20",23.05,23.4,22.95,22.95,198,23.63,26.12,24.66,22.6,847],["10-21",23.5,23.5,23.0,23.05,220,23.62,26.01,24.67,22.57,632],["10-22",23.5,24.05,22.5,22.65,473,23.55,25.89,24.67,22.43,534],["10-27",22.95,23.0,22.55,22.8,237,23.5,25.78,24.66,22.34,508],["10-28",23.15,23.65,23.1,23.55,264,23.46,25.69,24.54,22.38,497],["10-29",23.9,23.9,22.85,23.0,235,23.41,25.64,24.49,22.33,488],["10-30",22.6,22.75,21.85,22.35,509,23.36,25.55,24.53,22.19,487],["11-02",22.35,22.7,22.25,22.55,185,23.27,25.47,24.4,22.14,469],["11-03",22.55,22.55,21.3,21.45,490,23.14,25.37,24.48,21.8,474],["11-04",22.05,22.05,20.45,21.15,697,22.98,25.25,24.45,21.51,485],["11-05",21.1,21.3,20.2,20.35,363,22.8,25.11,24.59,21.01,478],["11-06",18.4,19.7,18.4,19.7,1149,22.57,24.97,24.68,20.46,514],["11-09",19.8,20.45,19.55,19.6,482,22.36,24.81,24.75,19.97,450],["11-10",19.7,20.1,19.35,19.5,411,22.16,24.66,24.81,19.51,436],["11-11",19.5,19.65,18.95,19.4,340,21.98,24.52,24.84,19.12,408],["11-12",19.55,21.3,19.55,21.3,785,21.89,24.42,24.73,19.05,425],["11-13",20.6,21.6,20.45,20.6,1184,21.75,24.3,24.54,18.96,469],["11-16",20.6,21.0,19.8,20.1,754,21.61,24.18,24.44,18.78,479],["11-17",20.1,21.3,19.3,20.55,1137,21.47,24.08,24.23,18.71,517],["11-18",21.5,22.6,20.7,22.6,2239,21.46,24.01,24.19,18.73,617],["11-19",22.9,24.5,21.05,21.6,8869,21.39,23.92,24.04,18.74,1051],["11-20",20.7,23.75,20.4,23.75,6198,21.43,23.86,24.18,18.68,1350]]},{"code":"7767","name":"仁大資訊","sector":"上櫃","cat":"breakout","cat_label":"🔥 全市場篩出・帶量起漲","score":93,"date":"2026-11-20","close":55.3,"chg":5.0,"chg_pct":9.94,"vol":1662,"vma20":923,"vol_ratio":1.8,"vol_ratio_3d":1.8,"ma5":56.7,"ma20":52.02,"ma60":47.74,"ma20_slope":5.54,"ma60_slope":2.12,"bias20":6.31,"pre_bb_w":7.1,"curr_bb_w":40.9,"rsi14":55.9,"rs_vs_0050":41.61,"atr14":5.76,"stop_loss":44.93,"stop_pct":-18.75,"target_2r":78.11,"target_pct":41.25,"b":[["09-11",45.15,45.95,45.15,45.65,52,44.92,44.75,45.52,44.32,31],["09-14",46.2,49.45,46.0,47.0,186,45.03,44.83,46.11,43.95,39],["09-15",47.15,47.15,46.15,46.15,54,45.11,44.88,46.28,43.94,39],["09-16",46.85,46.85,45.65,46.15,27,45.18,44.94,46.42,43.94,38],["09-17",46.0,46.45,46.0,46.2,34,45.25,44.99,46.55,43.95,36],["09-18",46.25,46.85,46.2,46.4,35,45.34,45.03,46.69,43.99,35],["09-21",46.95,47.3,46.5,46.5,30,45.41,45.12,46.85,43.97,33],["09-22",46.55,46.95,46.55,46.65,17,45.48,45.23,47.01,43.95,33],["09-23",46.65,46.65,46.4,46.65,4,45.54,45.34,47.15,43.93,33],["09-24",46.65,46.7,46.65,46.65,16,45.61,45.45,47.28,43.94,32],["09-29",46.65,46.65,46.2,46.2,21,45.69,45.55,47.31,44.07,32],["09-30",46.35,46.35,46.3,46.3,2,45.78,45.67,47.34,44.22,32],["10-02",46.15,46.25,46.05,46.1,11,45.86,45.78,47.32,44.4,31],["10-05",46.05,46.15,46.0,46.0,15,45.91,45.88,47.32,44.5,30],["10-06",46.0,46.0,45.5,45.55,17,45.94,45.97,47.29,44.59,30],["10-07",45.2,45.5,45.0,45.45,12,45.96,46.05,47.26,44.66,31],["10-08",45.4,45.4,45.35,45.35,4,45.98,46.06,47.23,44.73,30],["10-12",45.35,45.45,45.05,45.25,12,45.99,46.06,47.21,44.77,31],["10-13",44.9,45.5,44.4,45.3,20,46.01,46.04,47.17,44.85,30],["10-14",45.35,45.85,45.35,45.85,13,46.07,46.04,47.06,45.08,29],["10-15",45.7,45.95,45.7,45.95,20,46.08,46.07,47.06,45.1,27],["10-16",46.1,46.3,45.7,45.7,25,46.02,46.06,46.91,45.13,19],["10-19",45.55,45.55,45.25,45.5,8,45.98,46.04,46.9,45.06,17],["10-20",45.6,45.95,45.6,45.6,5,45.96,46.04,46.89,45.03,16],["10-21",46.0,46.2,46.0,46.2,10,45.96,46.05,46.89,45.03,14],["10-22",45.9,45.9,45.8,45.8,11,45.93,46.05,46.84,45.02,13],["10-27",45.2,47.5,45.1,47.5,27,45.98,46.05,47.1,44.86,13],["10-28",47.5,47.5,46.0,47.5,32,46.02,45.99,47.29,44.75,14],["10-29",47.9,47.9,47.0,47.0,40,46.04,45.96,47.35,44.73,16],["10-30",46.0,46.0,46.0,46.0,5,46.01,45.95,47.29,44.73,15],["11-02",46.7,48.6,46.7,48.3,80,46.11,45.98,47.74,44.48,18],["11-03",49.0,53.1,49.0,53.1,1111,46.45,46.07,49.91,42.99,73],["11-04",55.0,58.4,54.2,58.4,1542,47.06,46.25,53.3,40.82,150],["11-05",62.1,64.2,52.6,52.6,2580,47.39,46.33,54.06,40.72,278],["11-06",47.35,52.5,47.35,47.35,1009,47.48,46.33,54.09,40.87,328],["11-09",47.35,49.0,46.0,47.9,545,47.61,46.35,54.16,41.06,354],["11-10",48.1,51.5,48.1,48.3,328,47.76,46.36,54.23,41.29,371],["11-11",48.3,53.1,48.3,53.1,735,48.15,46.43,54.91,41.39,407],["11-12",55.4,57.8,53.4,54.3,1444,48.6,46.52,55.73,41.47,478],["11-13",56.6,59.7,54.4,59.7,2031,49.29,46.75,57.78,40.8,579],["11-16",63.1,65.6,63.1,65.6,1831,50.27,47.09,61.19,39.35,669],["11-17",65.6,65.6,59.1,59.1,1034,50.94,47.33,62.29,39.59,720],["11-18",56.8,57.1,53.2,53.2,947,51.33,47.47,62.43,40.23,767],["11-19",53.3,55.7,48.5,50.3,1476,51.56,47.57,62.36,40.76,840],["11-20",50.2,55.3,48.6,55.3,1662,52.02,47.74,62.65,41.39,923]]},{"code":"7828","name":"創新服務","sector":"上櫃","cat":"breakout","cat_label":"🔥 全市場篩出・帶量起漲","score":93,"date":"2026-11-20","close":1295.0,"chg":115.0,"chg_pct":9.75,"vol":1028,"vma20":185,"vol_ratio":5.56,"vol_ratio_3d":5.56,"ma5":1250.0,"ma20":1272.75,"ma60":1634.5,"ma20_slope":-5.07,"ma60_slope":-1.98,"bias20":1.75,"pre_bb_w":35.4,"curr_bb_w":31.9,"rsi14":51.9,"rs_vs_0050":10.92,"atr14":131.07,"stop_loss":1059.07,"stop_pct":-18.22,"target_2r":1814.05,"target_pct":40.08,"b":[["09-14",1970.0,1975.0,1875.0,1950.0,260,1779.5,1829.67,2126.96,1432.04,265],["09-15",1910.0,2040.0,1845.0,1845.0,273,1790.25,1826.42,2131.8,1448.7,272],["09-16",1860.0,2020.0,1855.0,2005.0,257,1809.75,1822.5,2153.57,1465.93,276],["09-17",2050.0,2055.0,1920.0,1935.0,336,1824.0,1816.0,2163.76,1484.24,289],["09-18",2010.0,2125.0,2010.0,2125.0,498,1849.75,1813.08,2198.67,1500.83,311],["09-21",2140.0,2145.0,2030.0,2040.0,271,1874.25,1812.58,2203.81,1544.69,320],["09-22",2110.0,2110.0,1920.0,1920.0,326,1894.25,1813.5,2181.19,1607.31,331],["09-23",1940.0,2025.0,1910.0,1970.0,284,1913.75,1812.75,2163.17,1664.33,341],["09-24",1970.0,2030.0,1945.0,1970.0,131,1929.75,1810.42,2148.62,1710.88,336],["09-29",1980.0,1980.0,1900.0,1900.0,143,1934.75,1803.42,2145.97,1723.53,330],["09-30",1920.0,1965.0,1875.0,1885.0,211,1940.75,1798.17,2138.75,1742.75,317],["10-01",1920.0,1940.0,1865.0,1875.0,118,1944.0,1795.5,2135.33,1752.67,314],["10-02",1900.0,1910.0,1850.0,1850.0,155,1948.5,1795.75,2126.04,1770.96,315],["10-05",1860.0,1875.0,1830.0,1840.0,157,1952.75,1794.33,2114.97,1790.53,313],["10-06",1840.0,1865.0,1830.0,1840.0,104,1948.25,1789.75,2117.58,1778.92,296],["10-07",1840.0,1905.0,1795.0,1800.0,173,1944.75,1786.83,2123.06,1766.44,288],["10-08",1800.0,1840.0,1765.0,1840.0,132,1935.0,1783.75,2113.83,1756.17,260],["10-12",1795.0,1880.0,1795.0,1830.0,215,1922.5,1780.67,2093.83,1751.17,236],["10-13",1800.0,1800.0,1675.0,1740.0,235,1906.75,1773.67,2084.27,1729.23,226],["10-14",1745.0,1755.0,1700.0,1710.0,103,1893.5,1769.75,2087.46,1699.54,219],["10-15",1600.0,1650.0,1600.0,1605.0,162,1876.25,1766.83,2105.25,1647.25,214],["10-16",1585.0,1620.0,1545.0,1565.0,144,1862.25,1761.75,2128.4,1596.1,207],["10-19",1475.0,1515.0,1455.0,1505.0,142,1837.25,1755.0,2136.89,1537.61,202],["10-20",1470.0,1545.0,1470.0,1480.0,122,1814.5,1748.17,2148.16,1480.84,191],["10-21",1490.0,1530.0,1445.0,1455.0,115,1781.0,1743.58,2117.76,1444.24,172],["10-22",1455.0,1475.0,1380.0,1380.0,104,1748.0,1740.17,2105.48,1390.52,163],["10-27",1395.0,1410.0,1345.0,1370.0,140,1720.5,1739.17,2104.46,1336.54,154],["10-28",1415.0,1415.0,1380.0,1410.0,54,1692.5,1741.17,2081.25,1303.75,143],["10-29",1430.0,1430.0,1330.0,1340.0,70,1661.0,1743.17,2056.73,1265.27,139],["10-30",1250.0,1260.0,1210.0,1240.0,242,1628.0,1741.5,2047.85,1208.15,144],["11-02",1175.0,1310.0,1175.0,1250.0,137,1596.25,1737.92,2029.39,1163.11,141],["11-03",1250.0,1250.0,1160.0,1200.0,87,1562.5,1731.08,2008.5,1116.5,139],["11-04",1190.0,1285.0,1140.0,1215.0,142,1530.75,1722.17,1980.75,1080.75,139],["11-05",1225.0,1225.0,1125.0,1125.0,105,1495.0,1711.67,1954.55,1035.45,136],["11-06",1015.0,1065.0,1015.0,1050.0,160,1455.5,1700.67,1925.34,985.66,139],["11-09",1155.0,1155.0,1155.0,1155.0,22,1423.25,1692.33,1882.5,964.0,131],["11-10",1270.0,1270.0,1270.0,1270.0,15,1394.75,1686.75,1816.21,973.29,125],["11-11",1395.0,1395.0,1395.0,1395.0,16,1373.0,1680.67,1744.27,1001.73,115],["11-12",1530.0,1530.0,1420.0,1430.0,218,1357.5,1673.25,1690.06,1024.94,115],["11-13",1440.0,1545.0,1350.0,1375.0,283,1340.75,1667.5,1631.75,1049.75,124],["11-16",1340.0,1355.0,1265.0,1270.0,130,1324.0,1659.92,1589.7,1058.3,122],["11-17",1205.0,1245.0,1180.0,1195.0,194,1305.5,1652.67,1552.36,1058.64,124],["11-18",1250.0,1310.0,1180.0,1310.0,229,1295.75,1647.58,1525.1,1066.4,129],["11-19",1285.0,1335.0,1180.0,1180.0,343,1280.75,1639.75,1498.91,1062.59,140],["11-20",1120.0,1295.0,1065.0,1295.0,1028,1272.75,1634.5,1475.99,1069.51,185]]},{"code":"6148","name":"驊宏資","sector":"上櫃","cat":"breakout","cat_label":"🔥 全市場篩出・帶量起漲","score":89,"date":"2026-11-20","close":52.5,"chg":3.25,"chg_pct":6.6,"vol":53632,"vma20":22604,"vol_ratio":2.37,"vol_ratio_3d":2.37,"ma5":55.03,"ma20":47.47,"ma60":38.8,"ma20_slope":8.7,"ma60_slope":6.21,"bias20":10.6,"pre_bb_w":21.0,"curr_bb_w":58.6,"rsi14":62.7,"rs_vs_0050":52.51,"atr14":6.1,"stop_loss":41.52,"stop_pct":-20.91,"target_2r":76.66,"target_pct":46.02,"b":[["09-14",33.3,34.1,33.3,34.1,1346,28.44,29.42,31.44,25.44,236],["09-15",37.5,37.5,35.7,37.5,4810,28.93,29.48,33.87,23.99,466],["09-16",37.6,38.9,36.35,36.65,21401,29.38,29.55,35.31,23.45,1533],["09-17",37.0,38.45,35.95,36.25,5418,29.82,29.6,36.38,23.26,1800],["09-18",36.25,39.85,35.9,39.85,9052,30.44,29.74,38.23,22.65,2248],["09-21",41.95,42.1,39.15,40.0,14846,31.06,29.89,39.75,22.37,2987],["09-22",39.95,40.2,38.65,38.75,2668,31.63,30.03,40.76,22.5,3114],["09-23",39.65,39.95,36.85,37.35,2005,32.09,30.14,41.4,22.78,3210],["09-24",38.6,41.05,38.6,39.2,6796,32.64,30.28,42.27,23.01,3544],["09-29",39.2,39.8,38.2,38.5,1908,33.14,30.37,42.88,23.4,3635],["09-30",37.95,39.4,37.9,38.1,1358,33.65,30.43,43.31,23.99,3701],["10-01",38.15,38.65,37.85,38.05,1083,34.15,30.51,43.63,24.67,3753],["10-02",38.45,38.9,37.45,38.1,1112,34.66,30.59,43.85,25.47,3807],["10-05",38.1,38.1,36.3,36.3,1101,35.09,30.65,43.73,26.45,3858],["10-06",36.75,39.9,36.75,37.7,5322,35.54,30.74,43.72,27.36,4116],["10-07",36.75,38.2,36.65,37.1,1378,35.97,30.83,43.49,28.45,4178],["10-08",37.1,37.65,36.65,37.15,747,36.41,30.94,43.08,29.74,4212],["10-12",38.2,40.35,38.1,39.1,4844,36.95,31.08,42.59,31.31,4450],["10-13",38.7,40.95,38.05,38.05,7057,37.44,31.2,41.41,33.47,4800],["10-14",38.05,38.15,37.05,37.2,1485,37.75,31.33,40.42,35.08,4786],["10-15",36.5,40.6,36.35,38.15,5971,37.95,31.49,40.03,35.87,5018],["10-16",38.6,41.95,38.15,41.95,11538,38.17,31.7,40.87,35.47,5354],["10-19",41.8,44.3,39.05,39.05,15066,38.3,31.85,40.93,35.67,5037],["10-20",38.9,40.45,38.9,39.85,3752,38.48,32.03,41.01,35.95,4954],["10-21",39.85,41.8,39.5,40.2,3946,38.49,32.22,41.07,35.91,4699],["10-22",40.6,44.2,40.15,44.2,16522,38.7,32.48,42.24,35.16,4782],["10-27",46.15,46.45,41.5,43.0,17146,38.91,32.74,42.91,34.91,5506],["10-28",43.9,45.4,40.5,41.6,7227,39.13,33.0,43.23,35.03,5767],["10-29",41.6,42.5,39.0,39.0,3651,39.12,33.23,43.22,35.02,5610],["10-30",38.35,41.95,37.85,38.5,14120,39.12,33.43,43.22,35.02,6221],["11-02",38.6,42.25,38.6,40.95,12333,39.26,33.67,43.41,35.11,6770],["11-03",41.4,44.95,38.95,40.2,17669,39.37,33.89,43.5,35.24,7599],["11-04",40.8,44.2,40.55,44.2,22672,39.67,34.13,44.25,35.09,8677],["11-05",45.5,46.85,41.4,43.4,49327,40.03,34.38,44.61,35.45,11088],["11-06",39.1,46.8,39.1,42.9,42930,40.29,34.63,44.91,35.67,12969],["11-09",43.0,47.15,42.0,43.95,23686,40.63,34.89,45.27,35.99,14084],["11-10",45.95,48.3,45.45,48.3,10539,41.19,35.22,46.63,35.75,14574],["11-11",49.9,53.1,46.3,53.1,19045,41.89,35.63,49.32,34.46,15284],["11-12",55.5,56.8,51.5,52.9,31957,42.63,36.03,51.25,34.01,16529],["11-13",55.0,58.1,54.0,58.1,24211,43.67,36.53,54.25,33.09,17665],["11-16",60.6,63.9,58.8,63.9,17662,44.96,37.12,58.41,31.51,18249],["11-17",66.4,66.4,57.6,57.6,16252,45.74,37.62,60.18,31.3,18485],["11-18",57.8,58.4,51.9,51.9,8888,46.39,38.02,60.73,32.05,18176],["11-19",52.0,54.9,48.95,49.25,42616,46.86,38.38,60.92,32.8,20119],["11-20",49.7,54.0,45.6,52.5,53632,47.47,38.8,61.39,33.55,22604]]},{"code":"1477","name":"聚陽","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":82,"date":"2026-11-20","close":220.0,"chg":-4.0,"chg_pct":-1.79,"vol":4417,"vma20":2013,"vol_ratio":2.19,"vol_ratio_3d":2.19,"ma5":223.8,"ma20":214.07,"ma60":203.32,"ma20_slope":1.79,"ma60_slope":0.99,"bias20":2.77,"pre_bb_w":5.4,"curr_bb_w":14.2,"rsi14":67.9,"rs_vs_0050":27.18,"atr14":7.79,"stop_loss":205.98,"stop_pct":-6.37,"target_2r":250.84,"target_pct":14.02,"b":[["09-14",195.0,195.5,193.0,194.5,672,197.12,212.24,202.4,191.84,1546],["09-15",195.0,195.0,192.0,192.0,699,196.85,211.88,202.58,191.12,1387],["09-16",192.0,193.0,189.0,191.0,1880,196.78,211.48,202.77,190.79,1271],["09-17",192.0,195.5,191.0,194.0,1162,196.43,211.1,202.2,190.66,1234],["09-18",193.0,194.5,192.0,194.0,2045,195.97,210.65,200.97,190.97,1265],["09-21",194.5,194.5,191.0,191.5,910,195.5,210.24,200.31,190.69,1250],["09-22",192.5,192.5,188.5,190.5,2028,194.97,209.72,199.55,190.39,1274],["09-23",190.5,193.0,190.5,192.5,941,194.75,209.28,199.35,190.15,1228],["09-24",192.5,192.5,189.0,191.0,763,194.38,208.72,198.92,189.84,1222],["09-29",190.5,192.5,190.0,190.0,505,194.1,208.19,198.98,189.22,1191],["09-30",190.5,193.0,189.5,192.0,1232,193.97,207.58,198.93,189.01,1169],["10-01",192.0,192.0,189.5,190.5,893,193.72,206.93,198.85,188.59,1155],["10-02",190.5,192.5,189.5,192.0,654,193.53,206.27,198.6,188.46,1134],["10-05",193.0,199.0,191.0,197.5,2024,193.7,205.82,199.06,188.34,1171],["10-06",199.0,205.5,197.5,203.5,2189,194.05,205.51,200.82,187.28,1232],["10-07",204.0,207.0,202.0,202.5,1974,194.43,205.12,202.14,186.72,1240],["10-08",202.0,205.0,201.0,204.0,1510,194.72,204.85,203.37,186.07,1256],["10-12",202.5,205.5,201.5,205.5,1094,195.12,204.66,204.91,185.33,1238],["10-13",204.0,208.0,204.0,206.0,1300,195.55,204.43,206.4,184.7,1262],["10-14",208.0,209.0,204.5,206.0,1597,196.03,204.27,207.8,184.26,1303],["10-15",207.5,211.0,206.5,208.5,2869,196.72,204.14,209.65,183.79,1413],["10-16",209.0,214.5,209.0,211.0,1308,197.68,204.03,211.82,183.54,1443],["10-19",212.0,212.0,207.0,207.5,880,198.5,203.91,212.9,184.1,1393],["10-20",207.0,210.0,207.0,207.5,668,199.18,203.79,213.94,184.42,1369],["10-21",208.0,209.0,207.5,209.0,567,199.93,203.69,215.08,184.78,1295],["10-22",209.0,211.0,208.0,209.0,894,200.8,203.54,215.92,185.68,1294],["10-27",209.0,210.5,207.0,207.0,1136,201.62,203.42,216.2,187.04,1249],["10-28",207.0,208.5,206.5,208.0,489,202.4,203.28,216.6,188.2,1227],["10-29",208.0,208.0,205.5,206.5,830,203.18,203.03,216.47,189.89,1230],["10-30",208.0,208.0,205.0,206.5,557,204.0,202.82,215.89,192.11,1233],["11-02",206.5,209.0,205.0,205.0,709,204.65,202.59,215.19,194.11,1207],["11-03",204.0,209.5,204.0,204.0,1504,205.32,202.29,213.64,197.0,1237],["11-04",204.5,210.0,201.5,203.5,1106,205.9,201.93,211.65,200.15,1260],["11-05",205.5,216.5,205.5,214.5,4478,206.75,201.74,212.3,201.2,1382],["11-06",202.5,215.5,202.5,213.0,3260,207.22,201.56,213.19,201.25,1436],["11-09",211.5,216.0,210.5,216.0,1539,207.9,201.46,214.59,201.21,1414],["11-10",213.5,218.5,213.0,215.5,1933,208.47,201.36,215.68,201.26,1435],["11-11",215.5,216.0,211.5,213.0,1002,208.85,201.26,216.18,201.52,1431],["11-12",213.0,218.0,213.0,215.5,1595,209.32,201.19,217.07,201.57,1446],["11-13",217.0,227.0,214.5,225.5,4361,210.3,201.32,220.61,199.99,1584],["11-16",225.5,229.0,223.5,224.5,3062,211.1,201.65,223.08,199.12,1593],["11-17",225.5,227.5,218.5,226.5,3022,211.88,202.13,225.61,198.15,1679],["11-18",226.5,226.5,220.5,224.0,1463,212.7,202.66,227.24,198.16,1708],["11-19",224.0,230.0,222.0,224.0,2904,213.53,203.04,228.65,198.41,1820],["11-20",222.5,226.5,219.0,220.0,4417,214.07,203.32,229.3,198.84,2013]]},{"code":"2412","name":"中華電","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":82,"date":"2026-11-20","close":162.5,"chg":-3.5,"chg_pct":-2.11,"vol":40343,"vma20":16707,"vol_ratio":2.41,"vol_ratio_3d":2.41,"ma5":164.2,"ma20":161.15,"ma60":149.3,"ma20_slope":1.65,"ma60_slope":1.58,"bias20":0.84,"pre_bb_w":7.7,"curr_bb_w":6.6,"rsi14":56.5,"rs_vs_0050":27.43,"atr14":4.68,"stop_loss":154.08,"stop_pct":-5.18,"target_2r":181.02,"target_pct":11.4,"b":[["09-14",141.0,142.5,140.5,142.5,18646,137.5,138.38,141.13,133.87,9544],["09-15",143.5,143.5,142.5,143.5,16721,137.82,138.37,142.28,133.36,9688],["09-16",143.5,144.0,142.0,143.5,14715,138.2,138.36,143.21,133.19,10074],["09-17",143.5,145.0,143.0,145.0,14993,138.62,138.38,144.37,132.87,10562],["09-18",145.0,145.5,144.0,145.5,27560,139.07,138.41,145.46,132.68,11676],["09-21",145.0,145.0,143.0,144.5,8957,139.47,138.43,146.16,132.78,11772],["09-22",145.0,145.0,143.0,145.0,5412,139.9,138.48,146.85,132.95,11823],["09-23",145.0,145.5,144.5,145.5,8274,140.38,138.55,147.5,133.26,11849],["09-24",145.5,146.0,145.0,145.0,6253,140.85,138.61,147.87,133.83,11884],["09-29",146.0,146.0,143.0,144.0,10464,141.28,138.66,147.98,134.58,11829],["09-30",145.0,145.0,143.0,143.5,10540,141.65,138.7,147.95,135.35,11587],["10-01",144.0,146.0,143.0,145.5,8534,142.12,138.77,148.07,136.17,11673],["10-02",145.0,146.5,144.0,146.0,9921,142.55,138.85,148.33,136.77,11624],["10-05",147.0,147.0,144.0,145.5,8432,142.93,138.95,148.45,137.41,11397],["10-06",145.5,145.5,144.0,145.5,6998,143.32,139.15,148.34,138.3,11380],["10-07",145.5,145.5,144.0,145.5,7032,143.7,139.35,148.17,139.23,11286],["10-08",145.0,146.5,145.0,146.5,9090,144.07,139.57,148.14,140.0,11189],["10-12",146.5,147.0,146.0,146.5,6997,144.43,139.8,148.04,140.82,11053],["10-13",145.5,148.0,145.5,148.0,13287,144.85,140.0,148.01,141.69,11364],["10-14",148.0,149.5,147.5,148.5,9089,145.25,140.18,148.12,142.38,11095],["10-15",149.5,154.0,149.0,152.5,24238,145.75,140.4,149.78,141.72,11375],["10-16",152.5,153.5,151.0,153.0,13102,146.22,140.63,151.2,141.24,11194],["10-19",153.5,155.5,152.5,154.5,17765,146.78,140.9,152.77,140.79,11346],["10-20",152.0,155.5,152.0,154.5,9774,147.25,141.18,154.05,140.45,11085],["10-21",153.5,154.0,152.5,154.0,8435,147.68,141.43,155.03,140.33,10129],["10-22",153.0,158.0,152.5,158.0,15600,148.35,141.72,156.81,139.89,10461],["10-27",159.5,159.5,156.0,158.0,13229,149.0,142.0,158.28,139.72,10852],["10-28",156.5,158.0,155.5,156.5,7522,149.55,142.27,159.23,139.87,10815],["10-29",155.5,159.0,155.5,158.0,7907,150.2,142.56,160.31,140.09,10897],["10-30",159.0,160.0,158.0,160.0,16301,151.0,142.9,161.55,140.45,11189],["11-02",161.0,161.5,157.5,159.5,9643,151.8,143.24,162.38,141.22,11144],["11-03",158.5,160.5,157.5,159.0,10008,152.47,143.62,163.07,141.87,11218],["11-04",159.5,161.5,159.0,161.5,16144,153.25,144.03,164.11,142.39,11529],["11-05",162.0,166.5,160.5,161.5,24116,154.05,144.43,164.87,143.23,12313],["11-06",158.0,164.0,156.5,163.5,26954,154.95,144.87,165.77,144.13,13311],["11-09",162.0,163.0,158.0,159.0,24058,155.62,145.24,165.65,145.59,14162],["11-10",156.5,160.5,156.5,159.5,17986,156.28,145.63,165.51,147.05,14607],["11-11",159.5,161.0,156.5,161.0,11693,157.0,146.05,165.28,148.72,14842],["11-12",159.5,162.5,159.5,162.0,5625,157.7,146.48,165.14,150.26,14459],["11-13",162.0,165.0,161.0,165.0,8834,158.53,146.98,165.34,151.72,14446],["11-16",165.0,168.0,163.5,163.5,15047,159.07,147.44,165.61,152.53,13987],["11-17",166.5,166.5,162.0,164.5,21760,159.65,147.9,165.98,153.32,14420],["11-18",164.5,165.5,163.0,164.5,12725,160.15,148.38,166.35,153.95,14168],["11-19",165.0,171.0,165.0,166.0,28655,160.72,148.87,166.85,154.59,15112],["11-20",166.0,167.5,160.0,162.5,40343,161.15,149.3,166.48,155.82,16707]]},{"code":"5522","name":"遠雄","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":82,"date":"2026-11-20","close":62.9,"chg":-0.5,"chg_pct":-0.79,"vol":2053,"vma20":1277,"vol_ratio":1.61,"vol_ratio_3d":1.61,"ma5":61.86,"ma20":60.14,"ma60":61.36,"ma20_slope":0.02,"ma60_slope":-0.2,"bias20":4.59,"pre_bb_w":8.0,"curr_bb_w":17.5,"rsi14":59.3,"rs_vs_0050":23.69,"atr14":1.99,"stop_loss":59.24,"stop_pct":-5.82,"target_2r":70.95,"target_pct":12.8,"b":[["09-14",62.1,62.3,61.1,61.1,994,63.19,64.88,64.79,61.59,468],["09-15",61.0,61.0,60.2,60.7,803,63.06,64.66,65.0,61.12,476],["09-16",60.5,60.8,60.0,60.0,1136,62.94,64.46,65.29,60.59,503],["09-17",60.4,61.4,60.2,60.7,568,62.77,64.28,65.24,60.3,488],["09-18",62.8,62.9,61.3,62.2,1267,62.66,64.22,65.06,60.26,532],["09-21",62.3,62.3,61.2,61.5,402,62.56,64.17,64.97,60.15,537],["09-22",62.4,62.4,61.2,61.9,531,62.48,64.14,64.85,60.11,549],["09-23",62.4,62.4,60.7,60.9,737,62.32,64.08,64.68,59.96,569],["09-24",60.6,61.1,60.2,60.7,675,62.16,64.01,64.52,59.8,588],["09-29",60.7,61.0,60.7,60.7,366,62.06,63.96,64.48,59.64,573],["09-30",60.8,61.5,60.7,61.0,663,62.02,63.91,64.48,59.56,551],["10-01",61.0,61.3,60.8,60.8,464,61.95,63.84,64.46,59.44,559],["10-02",60.8,60.9,60.2,60.5,500,61.81,63.78,64.33,59.29,574],["10-05",60.5,60.7,60.0,60.1,738,61.62,63.72,64.07,59.17,592],["10-06",60.1,60.4,59.8,60.0,584,61.42,63.64,63.71,59.13,603],["10-07",60.0,61.4,60.0,61.2,502,61.32,63.56,63.44,59.2,610],["10-08",61.0,61.3,60.7,60.8,357,61.18,63.45,63.03,59.33,617],["10-12",61.3,62.4,61.1,62.4,793,61.12,63.35,62.74,59.5,643],["10-13",61.5,62.1,61.5,62.1,479,61.1,63.23,62.62,59.58,646],["10-14",61.6,62.0,61.5,61.6,399,61.05,63.12,62.43,59.67,647],["10-15",62.0,62.2,61.5,61.5,642,61.06,63.02,62.46,59.66,630],["10-16",62.1,62.1,61.6,61.8,267,61.12,62.91,62.54,59.7,603],["10-19",62.3,62.3,61.3,62.0,599,61.22,62.84,62.59,59.85,576],["10-20",61.1,62.1,61.1,62.1,608,61.29,62.78,62.69,59.89,578],["10-21",62.0,62.2,61.8,61.8,491,61.27,62.71,62.63,59.91,539],["10-22",62.0,62.4,61.8,62.1,503,61.3,62.64,62.7,59.9,544],["10-27",62.3,65.2,61.4,65.2,3653,61.46,62.62,63.66,59.26,701],["10-28",64.2,65.1,62.7,64.1,1547,61.62,62.6,64.08,59.16,741],["10-29",62.6,62.8,61.1,61.1,1554,61.65,62.53,64.09,59.21,785],["10-30",61.0,61.0,60.5,60.8,417,61.65,62.46,64.08,59.22,788],["11-02",60.3,60.9,60.1,60.6,341,61.63,62.38,64.09,59.17,771],["11-03",60.3,61.1,59.9,59.9,817,61.59,62.32,64.14,59.04,789],["11-04",59.7,59.9,58.9,59.3,528,61.52,62.23,64.22,58.82,790],["11-05",58.6,59.5,58.4,58.8,841,61.46,62.15,64.35,58.57,796],["11-06",56.0,57.7,55.5,56.9,1290,61.3,62.03,64.76,57.84,831],["11-09",56.0,57.2,56.0,56.5,880,61.07,61.88,65.12,57.02,850],["11-10",56.7,56.9,56.1,56.1,963,60.84,61.73,65.43,56.25,880],["11-11",55.9,57.0,55.9,56.3,969,60.53,61.62,65.46,55.6,889],["11-12",56.1,58.0,56.1,57.8,1502,60.31,61.55,65.32,55.3,940],["11-13",56.9,59.0,56.0,57.9,1505,60.13,61.48,65.21,55.05,995],["11-16",58.7,60.4,58.3,59.8,1775,60.05,61.43,65.1,55.0,1052],["11-17",59.2,61.2,58.3,60.9,1411,60.0,61.39,65.0,55.0,1109],["11-18",60.4,62.5,58.7,62.3,1507,60.02,61.39,65.04,55.0,1155],["11-19",62.2,63.4,61.1,63.4,1503,60.08,61.38,65.24,54.92,1199],["11-20",62.3,63.4,61.6,62.9,2053,60.14,61.36,65.4,54.88,1277]]},{"code":"2474","name":"可成","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":82,"date":"2026-11-20","close":193.0,"chg":-4.5,"chg_pct":-2.28,"vol":5318,"vma20":2205,"vol_ratio":2.41,"vol_ratio_3d":2.41,"ma5":197.1,"ma20":192.57,"ma60":200.37,"ma20_slope":0.27,"ma60_slope":-0.28,"bias20":0.22,"pre_bb_w":8.8,"curr_bb_w":10.7,"rsi14":49.3,"rs_vs_0050":20.64,"atr14":6.64,"stop_loss":181.05,"stop_pct":-6.19,"target_2r":219.29,"target_pct":13.62,"b":[["09-14",203.5,206.0,203.0,205.5,1509,206.35,198.8,211.61,201.09,2541],["09-15",205.0,205.0,203.0,203.5,1692,206.32,198.76,211.63,201.01,2497],["09-16",204.0,207.0,203.5,207.0,2863,206.47,198.7,211.68,201.26,2512],["09-17",207.0,209.0,206.0,208.5,2445,206.7,198.67,211.85,201.55,2518],["09-18",209.0,210.0,207.5,209.5,4891,207.0,198.73,212.07,201.93,2680],["09-21",210.5,213.0,210.5,211.0,3279,207.32,198.92,212.54,202.1,2758],["09-22",212.0,212.5,209.5,210.0,1506,207.6,199.03,212.77,202.43,2677],["09-23",209.0,209.5,207.0,209.0,2408,207.72,199.03,212.9,202.54,2667],["09-24",207.5,208.0,205.5,206.5,1849,207.68,199.09,212.89,202.47,2633],["09-29",207.0,207.0,205.0,205.5,1549,207.62,199.16,212.89,202.35,2598],["09-30",207.5,207.5,205.5,206.5,1446,207.53,199.15,212.81,202.25,2484],["10-01",206.0,208.0,206.0,207.5,1356,207.22,199.34,211.73,202.71,2286],["10-02",207.0,207.5,206.0,207.0,1026,207.03,199.53,211.2,202.86,2211],["10-05",208.0,208.0,206.0,207.0,1441,207.05,199.72,211.21,202.89,2118],["10-06",207.5,207.5,205.5,206.0,994,206.88,199.9,210.9,202.86,2067],["10-07",204.5,204.5,198.5,199.0,3355,206.4,200.01,211.61,201.19,2139],["10-08",198.0,198.0,195.0,195.5,1832,205.93,200.11,212.97,198.89,2005],["10-12",194.5,196.5,194.0,194.5,1013,205.35,200.17,213.98,196.72,1952],["10-13",193.0,197.0,193.0,194.0,1277,204.85,200.25,214.79,194.91,1964],["10-14",196.5,197.0,195.5,196.5,788,204.47,200.42,215.06,193.88,1925],["10-15",194.5,195.5,193.5,195.0,1521,203.95,200.5,215.29,192.61,1926],["10-16",195.5,197.0,195.0,196.0,893,203.57,200.58,215.43,191.71,1886],["10-19",195.0,196.0,193.5,194.0,1319,202.93,200.6,215.38,190.48,1809],["10-20",193.0,195.0,193.0,194.5,875,202.22,200.64,214.91,189.53,1730],["10-21",195.0,197.0,194.0,195.5,1287,201.53,200.74,214.08,188.98,1550],["10-22",196.0,197.5,195.5,196.5,1001,200.8,200.88,212.74,188.86,1436],["10-27",198.0,198.0,195.0,198.0,1567,200.2,201.1,211.41,188.99,1439],["10-28",197.0,199.0,196.5,199.0,1062,199.7,201.41,210.17,189.23,1372],["10-29",197.5,198.0,195.5,196.5,975,199.2,201.71,209.27,189.13,1328],["10-30",195.0,195.5,193.0,193.0,1811,198.57,201.88,208.55,188.59,1341],["11-02",193.5,195.0,192.5,193.5,1358,197.93,202.06,207.44,188.42,1337],["11-03",192.5,193.0,187.0,187.5,1726,196.93,202.17,206.41,187.45,1356],["11-04",190.0,190.0,183.5,186.5,2498,195.9,202.25,205.23,186.57,1429],["11-05",186.5,191.0,186.0,186.5,1170,194.88,202.23,203.59,186.17,1416],["11-06",174.0,185.0,171.0,183.5,3634,193.75,202.17,202.23,185.27,1548],["11-09",181.0,187.5,179.5,185.0,1704,193.05,201.9,201.98,184.12,1465],["11-10",185.0,189.5,185.0,187.5,1393,192.65,201.59,201.82,183.48,1443],["11-11",187.0,190.5,186.0,190.5,665,192.45,201.35,201.63,183.27,1426],["11-12",193.0,193.0,187.5,187.5,1053,192.12,201.09,201.51,182.73,1415],["11-13",189.0,195.5,189.0,195.0,1575,192.05,200.93,201.32,182.78,1454],["11-16",200.0,203.0,197.5,198.0,4279,192.2,200.83,201.75,182.65,1592],["11-17",197.0,200.0,196.0,198.5,3213,192.32,200.74,202.13,182.51,1708],["11-18",199.0,202.0,197.0,198.5,3781,192.55,200.65,202.7,182.4,1831],["11-19",198.5,201.5,196.5,197.5,4320,192.7,200.54,203.05,182.35,2003],["11-20",195.0,197.5,190.5,193.0,5318,192.57,200.37,202.84,182.3,2205]]},{"code":"2597","name":"潤弘","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":82,"date":"2026-11-20","close":174.5,"chg":-3.0,"chg_pct":-1.69,"vol":1015,"vma20":460,"vol_ratio":2.21,"vol_ratio_3d":2.21,"ma5":175.8,"ma20":170.22,"ma60":168.86,"ma20_slope":1.53,"ma60_slope":0.4,"bias20":2.51,"pre_bb_w":9.3,"curr_bb_w":13.0,"rsi14":58.6,"rs_vs_0050":25.17,"atr14":5.57,"stop_loss":164.47,"stop_pct":-5.75,"target_2r":196.57,"target_pct":12.65,"b":[["09-14",168.5,170.0,167.0,167.0,135,169.75,167.02,174.18,165.32,194],["09-15",167.0,169.5,166.5,169.5,112,169.95,166.95,173.94,165.96,193],["09-16",169.5,170.0,168.5,168.5,127,170.07,166.83,173.69,166.45,194],["09-17",170.0,173.0,169.0,172.0,197,170.22,166.85,173.9,166.54,195],["09-18",174.0,174.0,171.0,172.5,187,170.38,166.89,174.17,166.59,199],["09-21",171.0,172.0,170.5,171.0,121,170.5,167.01,174.2,166.8,199],["09-22",172.0,172.0,168.0,168.5,178,170.53,167.09,174.17,166.89,202],["09-23",169.5,171.0,167.0,168.5,198,170.38,167.18,174.09,166.67,194],["09-24",167.5,168.0,166.0,167.5,174,170.18,167.12,174.06,166.3,197],["09-29",168.0,168.0,166.5,167.0,84,169.93,167.08,173.95,165.91,197],["09-30",167.0,169.0,167.0,168.0,157,169.78,167.05,173.85,165.71,196],["10-01",168.0,168.0,167.0,167.5,269,169.62,166.99,173.79,165.45,186],["10-02",167.0,167.0,164.0,165.5,317,169.4,166.97,173.93,164.87,182],["10-05",166.5,166.5,163.5,163.5,345,169.18,166.91,174.37,163.99,191],["10-06",163.5,165.0,163.5,164.5,164,168.95,166.84,174.53,163.37,193],["10-07",164.0,166.0,163.5,165.5,222,168.68,166.79,174.37,162.99,198],["10-08",165.5,165.5,163.5,164.0,119,168.32,166.8,174.25,162.39,194],["10-12",164.0,165.0,163.0,164.0,148,167.78,166.79,173.14,162.42,179],["10-13",163.0,164.5,163.0,163.0,130,167.32,166.77,172.7,161.94,177],["10-14",163.0,165.5,163.0,164.0,82,167.07,166.76,172.58,161.56,173],["10-15",164.0,165.0,163.0,163.5,272,166.9,166.78,172.62,161.18,180],["10-16",164.5,166.0,164.5,165.0,149,166.68,166.85,172.33,161.03,182],["10-19",165.0,166.5,164.0,164.0,273,166.45,166.95,172.15,160.75,189],["10-20",162.0,166.0,162.0,166.0,169,166.15,167.06,171.25,161.05,187],["10-21",165.0,169.5,165.0,169.0,285,165.97,167.19,170.38,161.56,192],["10-22",170.0,171.0,168.5,170.0,247,165.93,167.31,170.13,161.73,199],["10-27",171.0,177.0,168.0,177.0,1357,166.35,167.57,172.68,160.02,258],["10-28",175.5,177.0,172.0,175.0,348,166.68,167.78,174.01,159.35,265],["10-29",175.0,175.0,170.0,172.5,217,166.93,167.96,174.68,159.18,267],["10-30",170.5,171.5,168.5,170.5,201,167.1,168.07,175.01,159.19,273],["11-02",170.5,171.5,168.5,168.5,158,167.12,168.18,175.04,159.2,273],["11-03",168.0,169.0,166.0,167.5,343,167.12,168.3,175.04,159.2,277],["11-04",167.0,167.5,164.0,166.5,291,167.18,168.35,175.07,159.29,276],["11-05",165.0,168.5,164.0,164.5,215,167.22,168.35,175.03,159.41,269],["11-06",160.0,161.5,157.0,160.0,501,167.0,168.25,175.35,158.65,286],["11-09",159.0,163.0,159.0,160.0,174,166.72,168.12,175.6,157.84,283],["11-10",160.0,164.0,160.0,164.0,184,166.72,168.06,175.6,157.84,287],["11-11",163.0,165.5,162.0,164.5,172,166.75,168.02,175.6,157.9,288],["11-12",164.0,171.0,164.0,169.0,359,167.05,168.02,175.78,158.32,299],["11-13",169.0,176.0,168.5,176.0,672,167.65,168.18,177.08,158.22,329],["11-16",177.0,183.0,176.5,177.0,839,168.32,168.32,178.38,158.26,357],["11-17",178.5,180.0,170.0,174.0,822,168.78,168.47,179.0,158.56,391],["11-18",174.5,176.5,171.5,176.0,445,169.38,168.63,179.82,158.94,399],["11-19",176.0,180.0,175.0,177.5,641,169.95,168.78,180.84,159.06,423],["11-20",179.0,180.5,174.0,174.5,1015,170.22,168.86,181.28,159.16,460]]},{"code":"9925","name":"新保","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":39.0,"chg":-0.6,"chg_pct":-1.52,"vol":1124,"vma20":505,"vol_ratio":2.23,"vol_ratio_3d":2.23,"ma5":39.52,"ma20":39.45,"ma60":39.56,"ma20_slope":-0.03,"ma60_slope":-0.1,"bias20":-1.14,"pre_bb_w":0.7,"curr_bb_w":2.3,"rsi14":36.8,"rs_vs_0050":20.77,"atr14":0.42,"stop_loss":38.24,"stop_pct":-1.95,"target_2r":40.67,"target_pct":4.28,"b":[["09-14",39.5,39.6,39.35,39.4,811,39.78,40.34,40.25,39.31,1266],["09-15",39.4,39.55,39.35,39.45,272,39.75,40.33,40.23,39.27,1231],["09-16",39.45,39.55,39.4,39.5,300,39.73,40.31,40.21,39.25,1215],["09-17",39.5,39.6,39.4,39.5,212,39.7,40.29,40.15,39.25,1198],["09-18",39.7,39.7,39.45,39.65,402,39.7,40.27,40.15,39.25,1138],["09-21",39.6,39.65,39.5,39.6,358,39.67,40.26,40.07,39.27,1122],["09-22",39.6,39.8,39.6,39.65,307,39.66,40.25,40.05,39.27,1102],["09-23",39.75,39.8,39.7,39.75,294,39.64,40.23,40.01,39.27,1089],["09-24",39.7,39.75,39.6,39.65,206,39.64,40.22,40.0,39.28,1045],["09-29",39.65,39.7,39.45,39.45,577,39.62,40.2,39.98,39.26,1017],["09-30",39.5,39.7,39.4,39.55,399,39.63,40.17,39.96,39.3,504],["10-01",39.55,39.7,39.45,39.55,316,39.61,40.15,39.87,39.35,468],["10-02",39.55,39.6,39.5,39.5,147,39.58,40.13,39.78,39.38,457],["10-05",39.55,39.55,39.35,39.4,833,39.56,40.11,39.76,39.36,434],["10-06",39.4,39.5,39.35,39.45,126,39.56,40.08,39.77,39.35,380],["10-07",39.45,39.5,39.35,39.4,298,39.55,40.05,39.77,39.33,357],["10-08",39.4,39.5,39.4,39.4,153,39.54,40.02,39.77,39.31,350],["10-12",39.4,39.6,39.4,39.45,248,39.53,39.99,39.74,39.32,348],["10-13",39.4,39.5,39.4,39.5,328,39.52,39.96,39.72,39.32,348],["10-14",39.6,39.6,39.35,39.45,265,39.51,39.92,39.71,39.31,342],["10-15",39.5,39.65,39.4,39.6,631,39.52,39.9,39.71,39.33,333],["10-16",39.7,39.8,39.55,39.65,254,39.53,39.87,39.73,39.33,332],["10-19",39.65,39.65,39.4,39.6,636,39.54,39.84,39.74,39.34,349],["10-20",39.4,39.55,39.4,39.5,438,39.54,39.81,39.74,39.34,360],["10-21",39.45,39.45,39.35,39.45,368,39.53,39.79,39.73,39.33,359],["10-22",39.55,39.55,39.35,39.5,238,39.52,39.78,39.71,39.33,353],["10-27",39.6,39.6,39.4,39.5,291,39.52,39.77,39.7,39.34,352],["10-28",39.5,39.65,39.4,39.6,272,39.51,39.75,39.67,39.35,351],["10-29",39.45,39.55,39.45,39.55,172,39.5,39.73,39.64,39.36,349],["10-30",39.65,39.65,39.35,39.55,338,39.51,39.72,39.65,39.37,337],["11-02",39.5,39.65,39.45,39.5,290,39.51,39.71,39.65,39.37,332],["11-03",39.55,39.65,39.35,39.4,343,39.5,39.69,39.65,39.35,333],["11-04",39.4,39.55,39.2,39.2,739,39.48,39.68,39.68,39.28,363],["11-05",39.45,39.5,39.05,39.05,618,39.46,39.66,39.73,39.19,352],["11-06",38.9,39.15,38.6,39.05,1216,39.45,39.64,39.78,39.12,406],["11-09",39.0,39.4,38.95,39.15,487,39.43,39.63,39.78,39.08,416],["11-10",39.6,39.85,39.4,39.55,543,39.44,39.62,39.79,39.09,435],["11-11",39.4,39.6,39.2,39.6,487,39.45,39.61,39.81,39.09,447],["11-12",39.35,39.65,39.35,39.55,264,39.45,39.6,39.81,39.09,444],["11-13",39.55,39.7,39.45,39.7,323,39.46,39.6,39.84,39.08,447],["11-16",39.7,39.85,39.6,39.7,736,39.47,39.59,39.86,39.08,452],["11-17",39.6,39.8,39.35,39.7,657,39.47,39.59,39.86,39.08,472],["11-18",39.55,39.75,39.5,39.6,407,39.47,39.58,39.86,39.08,461],["11-19",39.75,39.9,39.45,39.6,561,39.48,39.57,39.88,39.08,467],["11-20",39.6,39.65,38.9,39.0,1124,39.45,39.56,39.9,39.0,505]]},{"code":"1210","name":"大成","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":49.65,"chg":-1.45,"chg_pct":-2.84,"vol":1951,"vma20":1679,"vol_ratio":1.16,"vol_ratio_3d":1.16,"ma5":51.01,"ma20":50.83,"ma60":51.51,"ma20_slope":-0.18,"ma60_slope":-0.27,"bias20":-2.32,"pre_bb_w":1.9,"curr_bb_w":5.5,"rsi14":36.8,"rs_vs_0050":19.08,"atr14":1.04,"stop_loss":47.78,"stop_pct":-3.77,"target_2r":53.76,"target_pct":8.28,"b":[["09-14",52.0,52.3,51.7,51.8,1286,52.3,54.79,53.19,51.41,1237],["09-15",51.8,52.0,51.5,51.6,1292,52.23,54.74,53.11,51.35,1180],["09-16",51.6,52.0,51.4,51.5,1292,52.16,54.69,53.06,51.26,1162],["09-17",51.6,52.2,51.6,52.0,673,52.14,54.64,53.02,51.26,1123],["09-18",52.2,52.8,52.0,52.7,1857,52.11,54.59,52.91,51.31,1143],["09-21",52.3,52.8,52.3,52.5,952,52.11,54.55,52.9,51.32,1122],["09-22",52.5,52.5,51.9,52.1,691,52.09,54.5,52.85,51.33,1120],["09-23",52.4,52.4,51.8,52.3,666,52.06,54.44,52.77,51.35,1116],["09-24",51.9,52.1,51.8,51.9,571,52.04,54.38,52.74,51.34,1099],["09-29",51.8,52.0,51.6,51.6,878,52.02,54.28,52.75,51.29,1058],["09-30",51.7,52.0,51.5,52.0,1131,52.05,54.18,52.72,51.38,1006],["10-01",51.8,52.0,51.5,51.7,978,52.05,54.06,52.72,51.38,990],["10-02",51.6,51.7,51.4,51.5,916,52.04,53.95,52.74,51.34,982],["10-05",51.9,51.9,51.1,51.6,1179,52.02,53.86,52.74,51.3,986],["10-06",51.2,51.4,51.0,51.3,759,51.98,53.76,52.76,51.2,978],["10-07",51.4,51.5,51.2,51.3,1152,51.94,53.65,52.77,51.11,996],["10-08",51.3,51.4,51.1,51.3,917,51.88,53.56,52.72,51.04,974],["10-12",51.3,51.6,51.2,51.3,1052,51.82,53.45,52.64,51.0,995],["10-13",51.2,51.3,50.9,51.1,1759,51.76,53.32,52.61,50.91,1037],["10-14",51.2,51.4,50.9,51.3,1607,51.72,53.21,52.57,50.87,1080],["10-15",51.4,51.8,51.3,51.8,2111,51.72,53.11,52.57,50.87,1121],["10-16",51.8,51.9,51.5,51.7,1295,51.73,53.01,52.58,50.88,1121],["10-19",51.7,51.7,51.2,51.3,1108,51.71,52.92,52.58,50.84,1112],["10-20",51.0,51.3,50.9,51.1,1698,51.67,52.82,52.57,50.77,1163],["10-21",51.1,51.5,51.0,51.1,1089,51.59,52.71,52.38,50.8,1125],["10-22",51.1,51.4,51.0,51.3,640,51.53,52.6,52.21,50.85,1109],["10-27",51.5,51.8,51.0,51.0,2983,51.48,52.49,52.15,50.81,1224],["10-28",51.2,51.2,50.7,50.9,1460,51.4,52.38,52.0,50.8,1264],["10-29",51.1,51.3,50.9,51.0,747,51.36,52.28,51.94,50.78,1272],["10-30",51.0,51.6,50.9,51.6,2038,51.36,52.2,51.94,50.78,1330],["11-02",51.7,52.2,51.4,51.4,1224,51.33,52.13,51.83,50.83,1335],["11-03",51.3,51.7,50.8,50.8,1274,51.29,52.05,51.81,50.77,1350],["11-04",50.8,51.2,50.5,50.6,1304,51.24,51.98,51.83,50.65,1369],["11-05",50.6,51.4,50.5,50.5,1306,51.18,51.9,51.83,50.53,1376],["11-06",50.0,50.4,48.95,50.1,2214,51.12,51.85,51.92,50.32,1448],["11-09",50.1,50.9,49.7,49.95,3108,51.06,51.8,52.0,50.12,1546],["11-10",50.0,50.0,49.55,49.65,1568,50.98,51.73,52.1,49.86,1579],["11-11",49.65,49.7,49.1,49.7,1076,50.89,51.67,52.12,49.66,1580],["11-12",49.9,51.2,49.85,51.0,2018,50.89,51.65,52.12,49.66,1593],["11-13",50.5,52.0,50.5,52.0,2301,50.92,51.65,52.23,49.61,1628],["11-16",51.9,52.9,51.7,51.9,2799,50.93,51.65,52.26,49.6,1662],["11-17",51.9,52.0,51.0,51.4,1064,50.91,51.62,52.21,49.61,1650],["11-18",51.4,51.4,50.8,51.0,761,50.9,51.59,52.19,49.61,1633],["11-19",51.2,51.6,50.7,51.1,1758,50.9,51.57,52.19,49.61,1636],["11-20",51.1,51.1,49.6,49.65,1951,50.83,51.51,52.22,49.44,1679]]},{"code":"4153","name":"鈺緯","sector":"上櫃","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":30.75,"chg":-0.2,"chg_pct":-0.65,"vol":1921,"vma20":169,"vol_ratio":11.37,"vol_ratio_3d":11.37,"ma5":31.02,"ma20":30.9,"ma60":31.61,"ma20_slope":0.19,"ma60_slope":-0.5,"bias20":-0.49,"pre_bb_w":4.0,"curr_bb_w":4.5,"rsi14":48.7,"rs_vs_0050":22.08,"atr14":0.99,"stop_loss":28.97,"stop_pct":-5.79,"target_2r":34.67,"target_pct":12.75,"b":[["09-10",32.6,32.6,32.0,32.55,4,32.79,31.73,33.84,31.74,11],["09-11",32.75,32.75,31.4,31.4,10,32.7,31.76,33.91,31.49,10],["09-14",31.9,31.9,31.9,31.9,1,32.65,31.79,33.9,31.4,8],["09-15",31.9,31.9,31.8,31.8,5,32.59,31.82,33.88,31.3,8],["09-16",31.8,31.8,31.8,31.8,1,32.53,31.85,33.85,31.21,7],["09-17",31.8,32.0,31.7,32.0,5,32.49,31.88,33.82,31.16,7],["09-18",31.95,31.95,31.95,31.95,1,32.42,31.92,33.72,31.12,7],["09-21",32.0,32.3,31.8,32.3,11,32.36,31.96,33.57,31.15,7],["09-22",31.85,32.15,31.85,32.15,2,32.3,31.99,33.4,31.2,7],["09-23",31.85,32.1,31.35,32.1,12,32.23,32.03,33.17,31.29,7],["09-24",31.55,31.6,31.15,31.6,19,32.13,32.05,32.91,31.35,7],["09-29",31.4,31.5,31.4,31.5,4,32.05,32.08,32.69,31.41,7],["09-30",31.2,31.7,31.2,31.45,8,31.99,32.09,32.65,31.33,6],["10-01",31.55,31.55,31.25,31.25,12,31.95,32.09,32.68,31.22,6],["10-02",31.25,31.65,31.25,31.55,18,31.92,32.09,32.66,31.18,6],["10-05",31.6,31.6,31.3,31.4,27,31.87,32.1,32.61,31.13,8],["10-06",31.45,31.45,31.2,31.2,26,31.8,32.1,32.52,31.08,9],["10-07",31.4,31.65,30.9,31.65,27,31.77,32.1,32.47,31.07,10],["10-08",31.8,31.8,30.9,30.9,27,31.72,32.09,32.51,30.93,11],["10-12",30.95,30.95,30.65,30.8,24,31.66,32.08,32.54,30.78,12],["10-13",30.65,31.3,30.15,30.7,48,31.57,32.07,32.44,30.7,14],["10-14",30.8,31.2,30.5,30.9,21,31.54,32.07,32.46,30.62,14],["10-15",30.85,30.85,30.55,30.55,14,31.48,32.06,32.48,30.48,15],["10-16",30.7,31.15,30.6,31.15,10,31.45,32.07,32.45,30.45,15],["10-19",31.1,31.1,30.65,30.7,9,31.39,32.06,32.42,30.36,16],["10-20",30.65,30.65,30.35,30.35,12,31.31,32.04,32.4,30.22,16],["10-21",30.35,31.25,30.35,30.45,21,31.23,32.03,32.34,30.12,17],["10-22",30.45,30.9,30.35,30.9,4,31.16,32.02,32.16,30.16,17],["10-27",31.2,31.2,31.1,31.1,3,31.11,32.01,32.0,30.22,17],["10-28",31.2,31.2,30.6,30.65,21,31.04,32.01,31.83,30.25,17],["10-29",30.4,30.9,30.35,30.9,9,31.0,31.99,31.75,30.25,17],["10-30",30.9,31.45,30.9,31.45,3,31.0,31.99,31.74,30.26,17],["11-04",30.9,31.35,30.4,31.35,8,30.99,31.98,31.72,30.26,17],["11-05",30.6,31.3,30.45,30.95,5,30.98,31.96,31.7,30.26,16],["11-06",30.95,31.9,29.7,30.25,1096,30.91,31.93,31.65,30.17,70],["11-09",31.1,31.7,30.95,30.95,204,30.89,31.91,31.59,30.19,79],["11-10",30.45,31.3,30.25,31.3,17,30.9,31.88,31.61,30.19,79],["11-11",30.65,30.85,30.4,30.85,8,30.86,31.85,31.48,30.24,78],["11-12",30.9,30.9,30.35,30.35,6,30.83,31.8,31.49,30.17,77],["11-13",30.1,31.3,30.1,31.1,23,30.84,31.77,31.51,30.17,77],["11-16",30.9,30.9,30.9,30.9,1,30.86,31.74,31.53,30.19,74],["11-17",30.45,31.4,30.15,31.4,14,30.88,31.71,31.59,30.17,74],["11-18",30.55,31.1,30.55,31.1,8,30.91,31.68,31.61,30.21,74],["11-19",30.7,30.95,30.35,30.95,8,30.9,31.64,31.59,30.21,74],["11-20",30.3,31.0,30.0,30.75,1921,30.9,31.61,31.59,30.21,169]]},{"code":"1229","name":"聯華","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":38.65,"chg":-0.95,"chg_pct":-2.4,"vol":4795,"vma20":2253,"vol_ratio":2.13,"vol_ratio_3d":2.13,"ma5":39.4,"ma20":39.08,"ma60":40.24,"ma20_slope":-0.79,"ma60_slope":-0.45,"bias20":-1.1,"pre_bb_w":5.6,"curr_bb_w":8.1,"rsi14":38.6,"rs_vs_0050":18.54,"atr14":1.01,"stop_loss":36.83,"stop_pct":-4.71,"target_2r":42.65,"target_pct":10.35,"b":[["09-14",40.5,40.5,40.3,40.35,1439,41.7,41.31,42.69,40.71,1621],["09-15",40.3,40.4,40.1,40.35,1345,41.67,41.31,42.78,40.56,1642],["09-16",40.4,40.7,40.05,40.05,1689,41.61,41.29,42.92,40.3,1614],["09-17",40.1,40.6,40.0,40.35,1665,41.52,41.27,42.93,40.11,1548],["09-18",40.2,40.85,40.15,40.85,5009,41.44,41.25,42.81,40.07,1666],["09-21",40.75,40.75,40.2,40.25,1564,41.36,41.23,42.81,39.91,1674],["09-22",40.55,40.55,39.95,39.95,3358,41.27,41.19,42.83,39.71,1795],["09-23",39.95,40.2,39.95,40.0,1546,41.17,41.16,42.79,39.55,1816],["09-24",40.0,40.2,39.95,40.1,1264,41.07,41.12,42.69,39.45,1798],["09-29",40.1,40.2,39.5,39.55,2897,40.94,41.08,42.61,39.27,1892],["09-30",40.0,40.2,39.6,39.9,1860,40.85,41.03,42.53,39.17,1911],["10-01",39.95,40.4,39.95,40.2,2497,40.78,40.99,42.45,39.11,1932],["10-02",40.25,40.3,39.85,40.0,2032,40.68,40.96,42.29,39.07,1963],["10-05",40.2,40.2,39.65,39.65,1915,40.56,40.95,42.09,39.03,1944],["10-06",39.7,39.7,39.4,39.45,2065,40.44,40.94,41.92,38.96,1991],["10-07",39.45,39.7,39.35,39.65,1307,40.34,40.93,41.75,38.93,1992],["10-08",39.65,39.95,39.6,39.95,1613,40.25,40.92,41.52,38.98,2006],["10-12",39.95,40.15,39.9,40.05,1553,40.16,40.92,41.16,39.16,2005],["10-13",39.9,40.8,39.9,40.65,3682,40.1,40.9,40.83,39.37,2143],["10-14",40.6,41.65,40.55,41.5,3440,40.14,40.91,41.06,39.22,2187],["10-15",41.6,42.0,41.3,41.4,4025,40.19,40.94,41.26,39.12,2316],["10-16",41.4,41.5,40.9,41.05,1534,40.23,40.94,41.36,39.1,2325],["10-19",41.0,41.0,40.5,40.65,1717,40.26,40.95,41.41,39.11,2327],["10-20",40.2,40.35,39.95,40.0,2048,40.24,40.91,41.39,39.09,2346],["10-21",40.3,40.3,39.85,40.0,1402,40.2,40.88,41.32,39.08,2165],["10-22",40.0,40.0,39.85,39.95,1139,40.18,40.85,41.3,39.06,2144],["10-27",40.2,40.2,39.55,39.9,3219,40.18,40.84,41.31,39.05,2137],["10-28",40.0,40.0,39.7,39.7,1196,40.16,40.82,41.3,39.02,2120],["10-29",39.85,40.0,39.7,40.0,1017,40.16,40.81,41.3,39.02,2107],["10-30",40.0,40.0,39.55,39.65,1321,40.16,40.8,41.29,39.03,2029],["11-02",39.7,39.95,39.7,39.95,950,40.17,40.79,41.3,39.04,1983],["11-03",39.85,40.1,39.5,39.55,1964,40.14,40.78,41.3,38.98,1956],["11-04",39.7,40.0,38.75,38.95,2307,40.08,40.77,41.35,38.81,1970],["11-05",39.1,39.7,38.9,38.95,1483,40.05,40.74,41.4,38.7,1949],["11-06",38.0,38.6,37.1,38.4,3390,39.99,40.7,41.51,38.47,2015],["11-09",38.05,38.6,38.05,38.1,2242,39.92,40.66,41.64,38.2,2062],["11-10",38.1,38.2,37.8,38.1,2486,39.83,40.59,41.73,37.93,2105],["11-11",38.1,38.25,37.9,38.0,984,39.72,40.53,41.77,37.67,2077],["11-12",38.0,38.1,37.7,37.7,1570,39.58,40.48,41.76,37.4,1971],["11-13",37.8,37.9,37.5,37.75,1693,39.39,40.42,41.52,37.26,1884],["11-16",39.0,40.4,39.0,39.25,4423,39.28,40.39,41.2,37.36,1904],["11-17",39.0,40.35,38.55,39.9,4442,39.22,40.38,40.99,37.45,2049],["11-18",39.85,39.85,39.1,39.6,1684,39.17,40.34,40.83,37.51,2048],["11-19",39.3,40.3,39.3,39.6,2763,39.15,40.3,40.78,37.52,2083],["11-20",39.65,39.85,38.6,38.65,4795,39.08,40.24,40.67,37.49,2253]]},{"code":"2618","name":"長榮航","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":44.65,"chg":-1.75,"chg_pct":-3.77,"vol":35256,"vma20":27957,"vol_ratio":1.26,"vol_ratio_3d":1.33,"ma5":46.67,"ma20":44.9,"ma60":43.16,"ma20_slope":2.18,"ma60_slope":0.91,"bias20":-0.56,"pre_bb_w":5.8,"curr_bb_w":17.7,"rsi14":55.6,"rs_vs_0050":28.1,"atr14":2.14,"stop_loss":40.8,"stop_pct":-8.62,"target_2r":53.12,"target_pct":18.97,"b":[["09-14",42.1,42.35,41.65,42.05,10748,42.3,42.37,43.03,41.57,18563],["09-15",42.2,42.25,40.85,41.2,20188,42.26,42.36,43.12,41.4,18126],["09-16",41.4,41.55,41.0,41.3,10930,42.24,42.33,43.15,41.33,17792],["09-17",41.35,42.25,41.2,42.05,14674,42.23,42.3,43.15,41.31,17285],["09-18",42.05,42.1,41.2,41.75,33583,42.19,42.25,43.11,41.27,17642],["09-21",41.95,42.2,41.5,41.95,7593,42.16,42.22,43.07,41.25,17014],["09-22",42.2,42.5,41.75,42.5,18211,42.17,42.2,43.09,41.25,17357],["09-23",42.85,43.2,42.45,42.85,37850,42.16,42.16,43.05,41.27,17831],["09-24",42.35,42.35,41.5,42.0,20263,42.13,42.13,42.98,41.28,17603],["09-29",42.0,42.0,41.45,41.5,14293,42.11,42.09,43.0,41.22,17295],["09-30",41.95,43.15,41.85,42.85,27435,42.16,42.08,43.1,41.22,17621],["10-01",42.4,42.7,41.85,42.2,17507,42.14,42.05,43.07,41.21,17561],["10-02",42.1,42.4,41.9,42.35,8526,42.16,42.05,43.1,41.22,17081],["10-05",42.7,42.7,41.9,41.9,9487,42.11,42.09,43.0,41.22,16239],["10-06",41.9,42.4,41.5,41.55,15257,42.06,42.12,42.97,41.15,16504],["10-07",41.9,41.95,41.5,41.95,7042,42.05,42.14,42.96,41.14,16212],["10-08",41.95,41.95,41.4,41.4,10752,42.0,42.15,42.93,41.07,16239],["10-12",42.0,42.65,41.65,42.0,15732,41.98,42.15,42.88,41.08,16450],["10-13",42.3,43.0,41.9,43.0,29260,42.04,42.17,43.04,41.04,17317],["10-14",43.1,43.4,42.7,43.4,17603,42.09,42.2,43.25,40.93,17346],["10-15",43.3,43.5,42.9,43.45,20211,42.16,42.24,43.46,40.86,17819],["10-16",43.5,44.05,43.3,43.7,20691,42.28,42.26,43.67,40.89,17845],["10-19",43.55,43.55,42.45,42.7,16684,42.35,42.27,43.67,41.03,18132],["10-20",42.4,42.85,42.25,42.35,12893,42.37,42.3,43.68,41.06,18043],["10-21",42.9,42.9,41.8,42.05,17859,42.38,42.32,43.67,41.09,17257],["10-22",41.8,42.55,41.8,42.2,12576,42.39,42.33,43.67,41.11,17506],["10-27",42.8,43.0,42.2,42.95,16715,42.42,42.33,43.72,41.12,17431],["10-28",43.15,43.15,42.35,42.4,8151,42.39,42.34,43.68,41.1,15946],["10-29",42.05,42.9,42.05,42.75,7525,42.43,42.36,43.71,41.15,15309],["10-30",42.6,42.85,42.15,42.7,12642,42.49,42.35,43.7,41.28,15227],["11-02",42.9,43.2,42.4,43.15,12160,42.51,42.34,43.75,41.27,14463],["11-03",43.35,44.6,43.3,43.7,33793,42.58,42.34,43.91,41.25,15277],["11-04",44.1,44.1,43.1,43.75,15643,42.65,42.34,44.07,41.23,15633],["11-05",45.0,46.75,44.65,45.1,62277,42.81,42.37,44.54,41.08,18273],["11-06",42.8,44.0,42.0,43.6,27867,42.92,42.36,44.58,41.26,18903],["11-09",43.0,44.35,42.6,43.9,31014,43.01,42.38,44.66,41.36,20102],["11-10",44.15,46.25,44.15,46.15,43812,43.25,42.45,45.24,41.26,21755],["11-11",46.6,47.7,45.3,47.6,55310,43.53,42.54,46.2,40.86,23734],["11-12",47.3,47.6,46.5,46.9,22446,43.73,42.64,46.76,40.7,23393],["11-13",46.9,47.75,45.35,47.75,29486,43.94,42.77,47.43,40.45,23987],["11-16",47.8,48.95,47.2,47.4,31490,44.14,42.86,47.93,40.35,24551],["11-17",47.9,48.25,45.9,48.1,32759,44.36,42.97,48.52,40.2,25155],["11-18",48.2,48.65,45.7,46.8,32182,44.56,43.05,48.77,40.35,25930],["11-19",46.65,48.05,46.15,46.4,36043,44.77,43.12,48.93,40.61,27087],["11-20",46.0,46.3,43.95,44.65,35256,44.9,43.16,48.87,40.93,27957]]},{"code":"1584","name":"精剛","sector":"上櫃","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":16.3,"chg":0.2,"chg_pct":1.24,"vol":2114,"vma20":598,"vol_ratio":3.54,"vol_ratio_3d":3.54,"ma5":16.13,"ma20":16.54,"ma60":17.56,"ma20_slope":-2.53,"ma60_slope":-0.85,"bias20":-1.45,"pre_bb_w":8.6,"curr_bb_w":14.4,"rsi14":38.0,"rs_vs_0050":13.74,"atr14":0.75,"stop_loss":14.95,"stop_pct":-8.28,"target_2r":19.27,"target_pct":18.22,"b":[["09-14",17.9,18.0,17.7,18.0,315,17.99,18.53,18.39,17.59,314],["09-15",17.9,18.0,17.75,18.0,251,18.0,18.5,18.4,17.6,316],["09-16",17.95,18.0,17.85,18.0,214,18.01,18.48,18.39,17.63,315],["09-17",18.0,18.2,18.0,18.2,359,18.02,18.46,18.41,17.63,318],["09-18",18.3,18.5,18.2,18.2,549,18.02,18.45,18.41,17.63,333],["09-21",18.35,18.35,18.1,18.25,229,18.04,18.44,18.43,17.65,334],["09-22",18.25,18.25,18.05,18.1,256,18.06,18.43,18.44,17.68,335],["09-23",18.2,18.3,17.95,18.1,337,18.05,18.42,18.43,17.67,331],["09-24",18.1,18.1,17.85,18.0,229,18.03,18.4,18.33,17.73,307],["09-29",18.1,18.45,18.0,18.05,496,18.02,18.39,18.31,17.73,305],["09-30",18.15,19.2,18.15,18.85,1678,18.06,18.37,18.52,17.6,376],["10-01",18.95,18.95,18.5,18.6,376,18.08,18.34,18.59,17.57,377],["10-02",18.65,18.7,18.45,18.6,255,18.11,18.33,18.67,17.55,372],["10-05",18.6,18.7,18.05,18.1,656,18.11,18.31,18.67,17.55,390],["10-06",18.15,18.25,18.0,18.15,298,18.12,18.29,18.68,17.56,385],["10-07",18.15,18.2,18.0,18.1,399,18.13,18.24,18.67,17.59,390],["10-08",18.1,18.2,17.7,17.8,791,18.13,18.2,18.66,17.6,415],["10-12",17.75,18.15,17.75,18.05,339,18.14,18.17,18.66,17.62,419],["10-13",18.1,18.1,17.75,18.0,210,18.15,18.13,18.65,17.65,421],["10-14",18.05,18.15,17.95,18.15,312,18.16,18.11,18.64,17.68,427],["10-15",18.15,18.15,17.75,17.85,379,18.16,18.09,18.66,17.66,430],["10-16",17.85,18.1,17.65,17.95,229,18.16,18.05,18.66,17.66,429],["10-19",17.85,17.95,17.75,17.9,173,18.15,18.02,18.66,17.64,427],["10-20",18.05,18.05,17.65,17.7,211,18.12,17.99,18.67,17.57,420],["10-21",17.8,17.9,17.7,17.75,172,18.1,17.96,18.67,17.53,401],["10-22",17.8,17.85,17.55,17.6,318,18.07,17.95,18.67,17.47,405],["10-27",17.7,17.7,17.45,17.45,256,18.04,17.94,18.7,17.38,405],["10-28",17.7,17.75,17.5,17.5,210,18.01,17.94,18.71,17.31,399],["10-29",17.5,17.55,17.3,17.45,258,17.98,17.95,18.72,17.24,400],["10-30",17.45,17.45,17.05,17.2,549,17.94,17.95,18.75,17.13,403],["11-02",17.2,17.35,17.15,17.15,176,17.85,17.95,18.62,17.08,328],["11-03",17.15,17.2,16.55,16.7,817,17.76,17.94,18.6,16.92,350],["11-04",16.7,16.8,16.0,16.25,605,17.64,17.92,18.62,16.66,367],["11-05",16.3,16.6,15.9,15.9,552,17.53,17.89,18.75,16.31,362],["11-06",14.9,16.5,14.6,16.5,985,17.45,17.87,18.71,16.19,397],["11-09",16.8,16.8,16.2,16.3,454,17.36,17.84,18.68,16.04,399],["11-10",16.4,16.65,16.1,16.15,315,17.27,17.81,18.67,15.87,376],["11-11",16.15,16.15,15.8,16.0,303,17.17,17.78,18.63,15.71,374],["11-12",16.1,16.3,15.95,16.0,369,17.07,17.75,18.56,15.58,382],["11-13",16.0,16.15,15.95,16.05,276,16.97,17.71,18.44,15.5,380],["11-16",16.05,16.1,15.5,15.75,666,16.86,17.67,18.36,15.36,394],["11-17",15.75,16.25,15.25,16.25,803,16.78,17.64,18.22,15.34,423],["11-18",16.25,16.25,15.65,16.25,474,16.7,17.62,18.06,15.34,438],["11-19",16.25,16.25,15.4,16.1,1462,16.62,17.59,17.92,15.32,501],["11-20",15.7,16.3,14.9,16.3,2114,16.54,17.56,17.73,15.35,598]]},{"code":"6782","name":"視陽","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":283.5,"chg":-7.0,"chg_pct":-2.41,"vol":2432,"vma20":744,"vol_ratio":3.27,"vol_ratio_3d":3.27,"ma5":276.2,"ma20":271.73,"ma60":250.02,"ma20_slope":1.57,"ma60_slope":2.55,"bias20":4.33,"pre_bb_w":12.4,"curr_bb_w":14.3,"rsi14":59.2,"rs_vs_0050":26.91,"atr14":18.71,"stop_loss":249.82,"stop_pct":-11.88,"target_2r":357.6,"target_pct":26.14,"b":[["09-14",221.5,227.0,219.5,227.0,154,228.03,207.46,260.43,195.63,608],["09-15",222.5,234.0,222.5,231.0,189,229.65,208.02,259.09,200.21,613],["09-16",230.0,232.5,227.5,231.5,174,231.07,208.64,257.85,204.29,612],["09-17",235.0,250.0,232.5,249.0,792,233.32,209.55,258.12,208.52,646],["09-18",250.0,250.0,238.0,240.0,435,235.22,210.33,255.54,214.9,661],["09-21",241.0,248.0,234.5,248.0,303,237.12,211.3,254.56,219.68,658],["09-22",248.0,248.0,237.5,237.5,271,237.5,212.01,254.63,220.37,578],["09-23",240.0,243.0,235.0,240.0,267,237.2,212.74,253.93,220.47,488],["09-24",237.5,238.5,232.0,233.5,146,236.7,213.38,253.24,220.16,453],["09-29",231.0,238.0,230.5,234.5,127,236.35,213.97,252.76,219.94,403],["09-30",237.0,243.0,236.5,242.0,223,235.72,214.51,250.15,221.29,335],["10-01",242.0,242.0,236.0,237.5,239,235.12,214.99,248.14,222.1,301],["10-02",236.5,237.5,232.0,236.0,122,234.97,215.41,247.88,222.06,285],["10-05",236.5,236.5,228.5,229.0,211,234.68,215.78,247.85,221.51,269],["10-06",231.5,231.5,229.0,231.5,80,234.78,216.17,247.82,221.74,254],["10-07",231.0,233.5,229.5,232.5,168,234.95,216.68,247.77,222.13,247],["10-08",232.5,232.5,229.0,230.0,90,234.82,217.2,247.78,221.86,240],["10-12",234.0,252.0,234.0,247.0,820,235.43,217.97,249.43,221.43,263],["10-13",242.0,251.0,238.5,241.5,312,236.12,218.68,249.87,222.37,268],["10-14",242.0,245.0,240.5,244.5,165,237.18,219.53,250.09,224.27,264],["10-15",247.0,262.0,243.0,251.0,1167,238.38,220.46,251.74,225.02,315],["10-16",251.0,264.0,250.0,259.5,1027,239.8,221.54,255.57,224.03,356],["10-19",260.0,260.5,251.0,254.0,426,240.93,222.63,257.37,224.49,369],["10-20",251.0,264.5,251.0,262.5,692,241.6,223.93,260.27,222.93,364],["10-21",262.5,271.0,256.5,270.0,825,243.1,225.38,265.47,220.73,384],["10-22",271.0,275.0,265.0,271.0,899,244.25,226.82,269.66,218.84,413],["10-27",271.0,273.0,262.0,265.5,529,245.65,228.28,272.47,218.83,426],["10-28",266.5,272.0,263.5,268.5,321,247.07,229.8,275.52,218.62,429],["10-29",267.5,273.0,263.0,269.0,328,248.85,231.3,278.1,219.6,438],["10-30",268.0,268.0,261.0,264.0,340,250.32,232.62,279.51,221.13,449],["11-02",263.5,266.0,260.0,261.5,353,251.3,233.83,280.61,221.99,455],["11-03",263.0,267.5,252.5,256.0,440,252.22,234.93,280.89,223.55,465],["11-04",258.0,261.5,249.0,258.0,397,253.32,235.92,281.09,225.55,479],["11-05",260.5,272.0,257.0,265.5,713,255.15,236.91,281.02,229.28,504],["11-06",239.0,284.0,239.0,274.5,1328,257.3,237.85,282.07,232.53,567],["11-09",289.0,289.0,265.0,265.5,629,258.95,238.71,281.16,236.74,590],["11-10",270.5,292.0,269.5,288.0,1191,261.85,239.97,283.32,240.38,645],["11-11",296.0,296.0,276.0,282.5,865,263.62,241.22,285.74,241.5,647],["11-12",286.0,286.0,277.5,279.0,352,265.5,242.43,286.11,244.89,649],["11-13",278.5,288.5,278.0,285.0,430,267.52,243.8,287.42,247.62,662],["11-16",287.5,287.5,273.0,273.0,293,268.62,245.01,287.13,250.11,618],["11-17",265.5,271.0,261.5,267.5,400,269.02,246.16,287.07,250.97,587],["11-18",266.5,269.5,255.0,266.5,529,269.65,247.22,286.39,252.91,592],["11-19",282.5,293.0,282.5,290.5,2113,271.05,248.66,289.73,252.37,663],["11-20",283.5,300.0,282.0,283.5,2432,271.73,250.02,291.17,252.29,744]]},{"code":"2254","name":"巨鎧精密-創","sector":"上市","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":109.5,"chg":-0.5,"chg_pct":-0.45,"vol":2786,"vma20":3132,"vol_ratio":0.89,"vol_ratio_3d":1.13,"ma5":109.7,"ma20":107.11,"ma60":88.16,"ma20_slope":3.58,"ma60_slope":4.99,"bias20":2.23,"pre_bb_w":16.2,"curr_bb_w":15.7,"rsi14":68.8,"rs_vs_0050":37.3,"atr14":2.14,"stop_loss":105.5,"stop_pct":-3.65,"target_2r":118.3,"target_pct":8.04,"b":[["09-14",65.8,70.8,65.8,70.8,1165,62.05,60.76,67.82,56.28,702],["09-15",70.9,74.4,70.9,73.1,1508,62.73,60.98,70.1,55.36,777],["09-16",73.1,77.0,73.0,74.2,2864,63.51,61.22,72.17,54.85,920],["09-17",74.2,75.2,72.8,75.2,1703,64.25,61.44,74.16,54.34,1005],["09-18",75.2,76.8,74.7,76.8,1697,65.07,61.68,76.2,53.94,1090],["09-21",76.8,78.8,76.8,78.8,1483,66.08,61.96,78.3,53.86,1163],["09-22",79.1,82.1,79.1,82.1,1665,67.24,62.35,80.84,53.64,1244],["09-23",82.3,87.1,82.1,86.6,3074,68.54,62.81,84.17,52.91,1389],["09-24",86.8,89.4,86.2,88.8,2385,69.97,63.3,87.42,52.52,1492],["09-29",89.2,92.1,89.2,91.8,2036,71.47,63.85,90.89,52.05,1567],["09-30",92.2,93.1,92.1,92.6,2107,73.03,64.41,93.93,52.13,1627],["10-01",93.0,94.6,93.0,94.1,1661,74.66,64.98,96.77,52.55,1693],["10-02",94.3,95.0,92.6,94.3,2133,76.27,65.56,99.15,53.39,1778],["10-05",94.5,95.0,94.1,94.8,2185,77.91,66.15,101.16,54.66,1859],["10-06",95.1,102.0,94.6,101.5,4339,79.88,66.85,104.09,55.67,1999],["10-07",102.0,106.0,91.4,91.4,5822,81.33,67.38,104.64,58.02,2161],["10-08",93.4,94.4,91.4,92.3,4069,82.79,67.93,104.98,60.6,2305],["10-12",92.7,94.4,92.3,94.4,3464,84.25,68.51,105.44,63.06,2401],["10-13",94.7,95.1,89.2,93.2,4037,85.63,69.07,105.32,65.94,2511],["10-14",93.4,96.7,93.4,94.6,4417,87.07,69.66,104.87,69.27,2690],["10-15",94.5,95.8,87.2,94.3,4079,88.24,70.24,104.64,71.84,2836],["10-16",94.4,94.9,94.1,94.4,3327,89.31,70.82,104.35,74.27,2927],["10-19",94.5,95.9,94.5,95.9,3154,90.4,71.43,103.98,76.82,2941],["10-20",96.0,98.4,93.8,94.9,3310,91.38,72.03,103.15,79.61,3022],["10-21",98.0,98.6,91.1,94.9,3622,92.28,72.59,102.03,82.53,3118],["10-22",94.8,98.1,91.6,97.9,3292,93.24,73.22,101.08,85.4,3208],["10-27",98.0,99.0,97.2,98.9,3061,94.08,73.86,100.42,87.74,3278],["10-28",99.1,100.0,99.1,99.9,2297,94.75,74.51,100.58,88.92,3239],["10-29",99.9,103.0,99.9,101.5,2520,95.38,75.21,101.25,89.51,3246],["10-30",102.0,104.0,101.0,103.5,3018,95.97,75.93,102.58,89.36,3295],["11-02",103.5,106.5,103.5,106.5,3249,96.66,76.67,104.52,88.8,3352],["11-03",106.5,109.0,99.1,106.5,3790,97.28,77.41,106.12,88.44,3459],["11-04",106.5,109.0,106.5,107.5,2909,97.94,78.18,107.72,88.16,3498],["11-05",107.5,109.0,107.0,109.0,3068,98.65,78.99,109.42,87.88,3542],["11-06",109.0,110.0,107.5,110.0,3758,99.08,79.81,110.89,87.27,3513],["11-09",110.0,111.5,109.5,110.5,3630,100.03,80.63,112.28,87.78,3403],["11-10",110.5,111.5,110.5,111.0,3085,100.97,81.47,113.57,88.37,3354],["11-11",111.5,111.5,111.0,111.5,3027,101.82,82.31,114.84,88.8,3332],["11-12",111.5,112.5,110.0,110.0,3416,102.66,83.14,115.51,89.81,3301],["11-13",110.0,111.5,109.5,109.5,3055,103.41,83.97,116.03,90.79,3233],["11-16",109.5,110.0,109.0,109.5,2905,104.17,84.82,116.33,92.01,3174],["11-17",109.5,110.5,109.5,109.5,3196,104.92,85.66,116.42,93.42,3168],["11-18",109.5,110.0,109.5,110.0,3000,105.62,86.51,116.53,94.71,3160],["11-19",110.0,111.0,110.0,110.0,3586,106.38,87.34,116.26,96.5,3174],["11-20",110.0,110.5,109.0,109.5,2786,107.11,88.16,115.54,98.68,3132]]},{"code":"6199","name":"天品","sector":"上櫃","cat":"squeeze","cat_label":"⏳ 底部收斂・抗跌蓄勢","score":78,"date":"2026-11-20","close":169.5,"chg":-3.0,"chg_pct":-1.74,"vol":12245,"vma20":9291,"vol_ratio":1.32,"vol_ratio_3d":1.32,"ma5":170.5,"ma20":164.55,"ma60":132.27,"ma20_slope":3.98,"ma60_slope":4.99,"bias20":3.01,"pre_bb_w":18.5,"curr_bb_w":14.8,"rsi14":66.7,"rs_vs_0050":36.44,"atr14":2.89,"stop_loss":162.08,"stop_pct":-4.38,"target_2r":185.82,"target_pct":9.63,"b":[["09-14",98.4,101.0,97.7,100.5,3119,95.1,98.71,99.31,90.89,1293],["09-15",100.5,102.5,98.0,102.5,3104,95.5,98.73,100.79,90.21,1431],["09-16",101.5,103.0,99.3,102.5,3767,95.83,98.74,101.94,89.72,1544],["09-17",102.5,106.0,101.0,105.0,3494,96.38,98.83,103.61,89.15,1702],["09-18",105.0,113.0,103.5,113.0,4219,97.33,99.04,107.47,87.19,1877],["09-21",112.5,118.5,105.5,114.5,8095,98.38,99.29,110.8,85.96,2246],["09-22",115.0,118.5,114.5,116.5,7291,99.52,99.58,114.03,85.01,2573],["09-23",116.5,122.0,116.0,122.0,5046,101.0,99.92,118.1,83.9,2750],["09-24",122.0,125.0,118.5,124.0,5872,102.58,100.31,121.9,83.26,3028],["09-29",125.0,127.0,124.5,126.0,7890,104.22,100.67,125.55,82.89,3393],["09-30",126.0,128.0,125.0,127.5,6634,105.95,101.04,128.87,83.03,3704],["10-01",127.5,128.5,127.0,128.0,6604,107.7,101.4,131.72,83.68,3999],["10-02",128.0,134.0,128.0,132.0,5823,109.54,101.87,135.04,84.04,4256],["10-05",132.5,134.0,130.0,133.5,7651,111.45,102.36,138.09,84.81,4537],["10-06",133.5,135.5,133.5,135.5,5161,113.42,102.86,141.03,85.81,4660],["10-07",135.5,139.5,134.5,139.5,6515,115.59,103.41,144.23,86.95,4907],["10-08",140.0,142.5,138.5,142.0,7925,117.87,104.05,147.3,88.44,5241],["10-12",142.5,144.5,142.0,144.0,5479,120.21,104.74,150.12,90.3,5447],["10-13",144.5,151.0,144.0,149.0,6481,122.8,105.49,153.27,92.33,5665],["10-14",149.5,153.5,134.5,138.0,13711,124.78,106.12,153.77,95.79,6194],["10-15",142.0,142.5,141.0,142.0,7620,126.85,106.89,154.5,99.2,6419],["10-16",143.5,144.5,143.0,144.0,5735,128.93,107.61,155.15,102.71,6550],["10-19",144.5,145.5,144.5,145.5,4671,131.07,108.4,155.24,106.9,6595],["10-20",147.0,150.0,134.5,147.0,6980,133.18,109.09,155.12,111.24,6770],["10-21",148.0,148.5,147.0,148.0,5497,134.93,109.84,155.71,114.15,6834],["10-22",148.5,150.0,147.0,149.5,7365,136.68,110.67,156.14,117.22,6797],["10-27",152.0,153.0,151.0,153.0,8191,138.5,111.58,156.86,120.14,6842],["10-28",154.5,156.5,154.5,156.0,8413,140.2,112.61,158.43,121.97,7010],["10-29",157.5,159.0,157.0,158.5,8171,141.93,113.68,160.23,123.63,7125],["10-30",159.5,160.5,159.0,160.5,7633,143.65,114.69,162.12,125.18,7113],["11-02",161.5,162.5,161.0,162.5,7590,145.4,115.77,164.05,126.75,7160],["11-03",163.0,164.5,162.5,164.5,7538,147.22,116.86,165.85,128.59,7207],["11-04",165.0,166.5,165.0,165.5,8760,148.9,117.98,167.77,130.03,7354],["11-05",166.0,167.5,166.0,167.0,7660,150.57,119.16,169.63,131.51,7354],["11-06",167.0,171.0,156.0,163.5,20932,151.97,120.28,170.5,133.44,8143],["11-09",164.0,165.0,164.0,165.0,9088,153.25,121.4,171.68,134.82,8272],["11-10",165.5,167.5,165.0,167.5,9758,154.53,122.55,173.19,135.87,8363],["11-11",168.0,169.0,168.0,168.5,8659,155.75,123.64,174.7,136.8,8522],["11-12",169.0,169.5,167.5,168.0,9288,156.7,124.81,176.1,137.3,8663],["11-13",168.5,169.0,168.5,169.0,8836,158.25,125.98,176.34,140.16,8419],["11-16",169.5,169.5,168.5,169.0,8648,159.6,127.19,176.64,142.56,8470],["11-17",169.0,171.0,168.5,170.0,9541,160.9,128.44,176.91,144.89,8660],["11-18",170.0,171.5,170.0,171.5,8907,162.2,129.7,177.19,147.21,8872],["11-19",171.5,172.5,171.0,172.5,8598,163.47,131.01,177.37,149.57,8953],["11-20",172.5,172.5,168.0,169.5,12245,164.55,132.27,176.72,152.38,9291]]},{"code":"7584","name":"樂意","sector":"上櫃","cat":"overextended","cat_label":"⚠️ 強勢但乖離大・勿追高","score":83,"date":"2026-11-20","close":46.7,"chg":2.25,"chg_pct":5.06,"vol":532,"vma20":168,"vol_ratio":3.17,"vol_ratio_3d":3.17,"ma5":41.94,"ma20":33.08,"ma60":29.33,"ma20_slope":10.93,"ma60_slope":4.75,"bias20":41.17,"pre_bb_w":18.9,"curr_bb_w":72.9,"rsi14":73.2,"rs_vs_0050":73.54,"atr14":4.28,"stop_loss":32.58,"stop_pct":-30.24,"target_2r":77.76,"target_pct":66.51,"b":[["09-10",26.9,26.9,26.0,26.2,3,26.17,26.39,27.55,24.79,4],["09-11",26.8,28.8,26.7,26.75,71,26.23,26.41,27.6,24.86,7],["09-14",26.1,28.3,26.1,28.3,15,26.35,26.46,27.98,24.72,8],["09-15",27.2,27.95,27.2,27.6,4,26.39,26.49,28.09,24.69,7],["09-16",27.15,27.2,27.15,27.2,2,26.43,26.5,28.17,24.69,7],["09-17",26.9,27.95,26.9,27.95,4,26.5,26.53,28.36,24.64,7],["09-18",28.75,28.8,28.45,28.8,5,26.67,26.56,28.71,24.63,8],["09-21",27.85,28.65,27.85,28.65,2,26.86,26.57,28.9,24.82,8],["09-22",29.1,29.1,27.95,27.95,7,27.0,26.57,28.95,25.05,8],["09-23",27.35,27.8,27.1,27.1,7,27.1,26.53,28.86,25.34,8],["09-24",26.85,27.2,26.85,27.2,5,27.13,26.5,28.87,25.39,8],["09-29",27.2,28.95,27.2,28.95,4,27.27,26.5,29.12,25.42,8],["09-30",28.55,28.7,28.5,28.7,6,27.4,26.48,29.25,25.55,8],["10-01",28.6,28.6,28.6,28.6,7,27.56,26.46,29.26,25.86,8],["10-05",27.9,28.5,27.9,28.5,9,27.64,26.43,29.35,25.93,8],["10-06",28.85,30.95,28.85,29.6,11,27.8,26.43,29.63,25.97,9],["10-07",30.35,30.35,29.6,29.6,2,27.93,26.46,29.88,25.98,9],["10-08",28.2,28.3,28.2,28.2,4,27.96,26.48,29.9,26.02,9],["10-12",27.25,27.9,26.4,27.6,10,27.99,26.46,29.89,26.09,9],["10-13",28.55,28.55,27.65,27.65,6,28.05,26.49,29.82,26.28,9],["10-14",28.45,28.45,28.45,28.45,1,28.17,26.51,29.72,26.62,9],["10-15",28.9,28.9,28.5,28.5,3,28.26,26.53,29.67,26.85,5],["10-16",28.5,28.5,27.8,28.45,4,28.26,26.55,29.68,26.84,5],["10-19",28.6,28.6,28.35,28.4,5,28.3,26.6,29.68,26.92,5],["10-21",28.9,30.8,28.9,30.8,84,28.48,26.67,30.15,26.81,9],["10-22",33.45,33.85,33.45,33.85,81,28.78,26.82,31.63,25.93,13],["10-27",37.0,37.2,30.75,30.75,174,28.88,26.9,31.86,25.9,21],["10-28",31.5,31.5,29.35,29.6,38,28.92,26.95,31.92,25.92,23],["10-29",30.5,30.5,29.2,29.2,23,28.99,27.03,31.95,26.03,24],["10-30",29.45,29.7,28.5,29.0,12,29.08,27.09,31.92,26.24,24],["11-02",29.0,30.45,29.0,30.45,8,29.24,27.19,32.0,26.48,24],["11-03",30.65,30.65,27.6,27.85,21,29.19,27.25,32.01,26.37,25],["11-04",27.1,27.1,25.4,25.6,22,29.03,27.27,32.25,25.81,26],["11-05",25.6,27.05,25.2,25.2,23,28.86,27.29,32.49,25.23,27],["11-06",24.0,27.7,23.8,27.7,83,28.82,27.34,32.48,25.16,30],["11-09",26.1,29.65,26.1,29.15,97,28.8,27.42,32.45,25.15,35],["11-10",29.85,30.5,27.7,29.6,49,28.8,27.51,32.45,25.15,37],["11-11",29.55,32.45,28.7,32.45,141,29.01,27.64,32.98,25.04,44],["11-12",32.45,34.0,30.8,34.0,190,29.33,27.8,33.79,24.87,53],["11-13",35.45,37.4,35.0,37.4,245,29.82,28.0,35.42,24.22,65],["11-16",41.1,41.1,41.1,41.1,163,30.45,28.26,37.86,23.04,73],["11-17",45.15,45.2,37.0,37.0,734,30.88,28.45,38.75,23.01,109],["11-18",36.9,40.7,33.3,40.45,308,31.48,28.7,40.29,22.67,125],["11-19",43.8,44.45,39.5,44.45,418,32.28,28.99,42.62,21.94,145],["11-20",40.05,47.8,40.05,46.7,532,33.08,29.33,45.14,21.02,168]]},{"code":"6140","name":"訊達","sector":"上櫃","cat":"overextended","cat_label":"⚠️ 強勢但乖離大・勿追高","score":75,"date":"2026-11-20","close":29.6,"chg":2.15,"chg_pct":7.83,"vol":1342,"vma20":1958,"vol_ratio":0.69,"vol_ratio_3d":1.0,"ma5":30.68,"ma20":25.66,"ma60":21.33,"ma20_slope":11.13,"ma60_slope":5.86,"bias20":15.35,"pre_bb_w":24.0,"curr_bb_w":62.6,"rsi14":57.7,"rs_vs_0050":68.45,"atr14":3.2,"stop_loss":23.84,"stop_pct":-19.46,"target_2r":42.27,"target_pct":42.8,"b":[["09-14",18.0,18.25,17.7,18.25,289,16.81,17.8,17.9,15.72,74],["09-15",20.05,20.05,20.05,20.05,326,17.0,17.79,18.76,15.24,86],["09-16",22.0,22.0,20.55,21.25,1568,17.24,17.8,19.76,14.72,161],["09-17",20.45,20.9,19.6,19.85,848,17.43,17.79,20.15,14.71,201],["09-18",20.25,21.8,20.0,21.8,1191,17.65,17.81,20.97,14.33,253],["09-21",23.95,23.95,23.05,23.95,2622,17.97,17.88,22.27,13.67,378],["09-22",23.5,23.5,21.95,22.1,1675,18.21,17.93,22.86,13.56,459],["09-23",22.3,22.4,20.3,21.25,682,18.41,17.94,23.22,13.6,490],["09-24",20.8,22.5,20.8,21.2,558,18.62,17.96,23.54,13.7,516],["09-29",21.1,21.2,20.7,20.75,332,18.8,17.95,23.75,13.85,530],["09-30",20.75,20.95,20.1,20.2,315,18.96,17.94,23.87,14.05,544],["10-01",20.15,20.5,19.95,20.05,212,19.11,17.92,23.95,14.27,553],["10-02",20.4,20.4,20.0,20.1,134,19.28,17.92,24.02,14.54,558],["10-05",20.05,20.05,19.6,19.7,210,19.44,17.92,24.01,14.87,566],["10-06",19.75,21.65,19.75,21.65,1009,19.68,17.95,24.17,15.19,613],["10-07",20.25,20.6,20.0,20.05,952,19.88,17.97,24.08,15.68,659],["10-08",20.05,20.15,20.0,20.15,197,20.06,18.0,23.95,16.17,667],["10-12",20.9,21.15,20.3,20.65,410,20.29,18.03,23.75,16.83,685],["10-13",20.1,20.8,20.0,20.0,318,20.48,18.06,23.37,17.59,698],["10-14",20.35,20.35,19.85,19.95,181,20.65,18.09,22.95,18.35,701],["10-15",19.7,20.65,19.7,20.15,289,20.74,18.14,22.78,18.7,701],["10-16",20.05,21.6,20.0,21.0,665,20.79,18.19,22.8,18.78,718],["10-19",20.5,21.25,20.35,20.45,375,20.75,18.23,22.76,18.74,658],["10-20",20.1,20.4,20.05,20.1,166,20.76,18.27,22.75,18.77,624],["10-21",20.85,20.85,20.0,20.2,161,20.68,18.32,22.62,18.74,573],["10-22",20.5,22.1,20.1,21.5,1055,20.56,18.39,21.87,19.25,494],["10-27",22.0,22.75,20.7,22.4,1331,20.57,18.48,21.95,19.19,477],["10-28",22.95,23.1,21.45,21.8,776,20.6,18.58,22.05,19.15,482],["10-29",21.6,21.6,20.6,20.65,477,20.57,18.67,22.0,19.14,478],["10-30",20.1,22.7,20.1,22.7,1425,20.67,18.77,22.37,18.97,532],["11-02",22.55,24.95,22.4,24.95,2780,20.91,18.92,23.42,18.4,656],["11-03",24.05,24.55,22.5,22.5,2763,21.03,19.02,23.6,18.46,783],["11-04",22.1,24.75,22.1,24.75,3037,21.27,19.15,24.26,18.28,928],["11-05",25.7,26.35,23.2,23.5,3504,21.45,19.27,24.5,18.4,1093],["11-06",21.15,24.8,21.15,22.7,1730,21.51,19.36,24.61,18.41,1129],["11-09",22.2,23.1,21.45,21.75,1426,21.59,19.44,24.62,18.56,1153],["11-10",21.9,23.9,21.9,23.9,1958,21.78,19.55,24.89,18.67,1241],["11-11",26.25,26.25,26.25,26.25,1627,22.06,19.7,25.68,18.44,1302],["11-12",28.85,28.85,28.85,28.85,1441,22.5,19.9,27.05,17.95,1358],["11-13",29.0,31.7,28.85,31.7,4281,23.09,20.15,29.0,17.18,1563],["11-16",34.8,34.85,33.6,34.85,1942,23.82,20.46,31.48,16.16,1646],["11-17",36.85,36.85,31.4,31.4,3201,24.34,20.71,32.56,16.12,1772],["11-18",31.7,31.7,28.3,30.1,1846,24.83,20.94,33.21,16.45,1846],["11-19",29.55,31.0,27.15,27.45,1232,25.2,21.13,33.36,17.04,1899],["11-20",25.5,30.15,24.75,29.6,1342,25.66,21.33,33.69,17.63,1958]]},{"code":"7765","name":"中華資安","sector":"上市","cat":"overextended","cat_label":"⚠️ 強勢但乖離大・勿追高","score":76,"date":"2026-11-20","close":294.5,"chg":26.5,"chg_pct":9.89,"vol":8574,"vma20":1170,"vol_ratio":7.33,"vol_ratio_3d":7.33,"ma5":281.7,"ma20":251.55,"ma60":237.52,"ma20_slope":5.25,"ma60_slope":2.08,"bias20":17.07,"pre_bb_w":6.7,"curr_bb_w":31.9,"rsi14":69.3,"rs_vs_0050":49.4,"atr14":19.79,"stop_loss":247.78,"stop_pct":-15.86,"target_2r":397.28,"target_pct":34.9,"b":[["09-14",234.0,240.0,234.0,240.0,517,223.05,223.88,232.45,213.65,65],["09-15",255.0,260.0,235.0,235.0,1947,223.65,223.91,234.39,212.91,161],["09-16",237.0,244.5,233.0,240.0,650,224.55,224.12,237.4,211.7,192],["09-17",236.5,236.5,228.5,231.0,373,224.85,224.24,238.0,211.7,210],["09-18",231.0,245.0,230.5,243.0,411,225.8,224.59,241.13,210.47,230],["09-21",245.0,247.5,238.0,240.0,261,226.6,224.95,243.1,210.1,242],["09-22",242.0,242.5,237.5,241.0,192,227.45,225.29,245.04,209.86,251],["09-23",240.0,244.0,240.0,243.0,157,228.38,225.65,247.16,209.6,258],["09-24",241.5,244.5,238.5,241.0,93,229.15,226.03,248.66,209.64,261],["09-29",240.0,240.0,235.5,237.0,105,229.8,226.28,249.44,210.16,264],["09-30",237.5,238.5,235.5,237.0,71,230.47,226.53,250.13,210.81,266],["10-01",238.5,238.5,235.0,236.5,67,231.12,226.72,250.67,211.57,268],["10-02",235.5,235.5,232.5,232.5,80,231.57,226.88,250.81,212.33,272],["10-05",233.0,233.0,226.5,229.0,234,231.93,226.99,250.71,213.15,281],["10-06",230.5,232.5,230.0,230.5,97,232.38,227.14,250.56,214.2,284],["10-07",234.0,236.0,233.0,235.0,92,233.1,227.35,250.47,215.73,287],["10-08",236.5,237.0,234.5,236.0,53,233.97,227.6,250.02,217.92,283],["10-12",235.5,238.0,234.0,237.0,86,234.9,227.84,249.33,220.47,285],["10-13",237.0,237.5,234.5,236.0,76,235.95,228.01,247.12,224.78,282],["10-14",236.0,236.5,234.5,235.0,43,236.78,228.22,244.61,228.95,280],["10-15",235.0,236.5,230.5,230.5,178,236.3,228.22,244.44,228.16,263],["10-16",234.0,239.5,234.0,234.0,293,236.25,228.34,244.43,228.07,180],["10-19",236.0,236.0,229.0,232.5,135,235.88,228.43,244.03,227.73,154],["10-20",232.5,232.5,229.5,229.5,83,235.8,228.49,244.15,227.45,140],["10-21",230.5,233.5,230.5,231.0,60,235.2,228.56,243.11,227.29,122],["10-22",234.0,236.5,232.5,235.0,160,234.95,228.66,242.55,227.35,117],["10-27",240.0,247.0,233.5,245.0,307,235.15,228.99,243.54,226.76,123],["10-28",245.0,245.5,240.0,240.0,143,235.0,229.27,242.92,227.08,122],["10-29",238.5,242.0,238.0,240.0,85,234.95,229.55,242.73,227.17,122],["10-30",238.0,246.5,236.5,242.0,131,235.2,229.82,243.53,226.87,123],["11-02",241.5,247.0,241.5,242.5,221,235.47,230.16,244.36,226.58,131],["11-03",242.0,252.0,236.5,238.0,344,235.55,230.43,244.5,226.6,145],["11-04",244.5,244.5,233.0,235.0,234,235.68,230.64,244.52,226.84,152],["11-05",239.5,246.5,234.0,234.0,370,235.93,230.84,244.27,227.59,159],["11-06",223.0,237.0,220.5,236.0,293,236.2,231.0,244.16,228.24,169],["11-09",234.0,245.0,234.0,236.0,170,236.25,231.18,244.2,228.3,173],["11-10",240.0,247.0,236.0,241.0,285,236.5,231.43,244.71,228.29,184],["11-11",245.0,245.0,239.5,243.5,142,236.82,231.66,245.58,228.06,187],["11-12",244.0,252.0,243.5,245.0,402,237.28,231.97,246.72,227.84,203],["11-13",252.0,269.5,250.5,269.5,1186,239.0,232.68,255.85,222.15,261],["11-16",296.0,296.0,295.5,296.0,868,242.28,233.88,271.88,212.68,295],["11-17",282.0,292.0,266.5,287.0,3442,244.93,234.94,280.07,209.79,453],["11-18",290.5,292.5,260.0,263.0,1970,246.45,235.62,281.94,210.96,544],["11-19",273.5,289.0,262.5,268.0,4088,248.38,236.34,284.16,212.6,745],["11-20",258.0,294.5,249.0,294.5,8574,251.55,237.52,291.61,211.49,1170]]},{"code":"0050","name":"元大台灣50","sector":"大盤ETF","cat":"benchmark","cat_label":"📊 台股大盤基準","score":55,"date":"2026-11-20","close":84.45,"chg":-5.75,"chg_pct":-6.37,"vol":872914,"vma20":288674,"vol_ratio":3.02,"vol_ratio_3d":3.02,"ma5":91.84,"ma20":99.58,"ma60":106.34,"ma20_slope":-3.96,"ma60_slope":-0.99,"bias20":-15.19,"pre_bb_w":13.9,"curr_bb_w":24.9,"rsi14":27.8,"rs_vs_0050":0.0,"atr14":4.64,"stop_loss":76.1,"stop_pct":-9.89,"target_2r":102.82,"target_pct":21.75,"b":[["09-14",106.3,107.15,105.85,106.9,82639,106.6,105.09,110.68,102.52,64930],["09-15",106.75,106.95,106.15,106.25,55674,106.67,105.0,110.68,102.66,64778],["09-16",106.15,107.4,106.15,106.9,69357,106.86,104.95,110.52,103.2,63699],["09-17",107.9,109.2,107.85,108.05,47371,107.08,104.96,110.48,103.68,64062],["09-18",109.6,109.95,108.85,109.85,79772,107.33,105.01,110.75,103.91,66098],["09-21",109.9,111.45,109.85,111.35,114373,107.71,105.15,111.15,104.27,69784],["09-22",113.35,113.75,111.85,111.85,80283,108.08,105.27,111.62,104.54,71047],["09-23",112.8,113.15,112.3,112.45,55410,108.41,105.35,112.27,104.55,69568],["09-24",112.0,112.45,111.75,112.4,66490,108.73,105.4,112.8,104.66,69643],["09-29",111.8,112.25,111.05,111.3,101008,108.95,105.44,113.08,104.82,70989],["09-30",112.5,113.05,112.05,112.05,58123,109.24,105.5,113.39,105.09,70708],["10-01",112.2,112.9,111.7,112.9,51775,109.46,105.58,113.89,105.03,68045],["10-02",112.85,112.95,112.3,112.8,65136,109.76,105.69,114.24,105.28,68223],["10-05",115.75,116.15,115.25,115.95,97729,110.25,105.85,115.17,105.33,70838],["10-06",116.3,116.6,115.7,116.5,66256,110.68,106.03,116.18,105.18,71936],["10-07",116.15,116.55,115.95,116.05,55933,110.98,106.2,116.94,105.02,69594],["10-08",115.35,115.55,114.9,114.95,87692,111.25,106.38,117.41,105.09,70447],["10-12",114.2,114.95,113.4,114.8,95616,111.51,106.52,117.81,105.21,73075],["10-13",112.55,113.2,111.9,112.4,210615,111.67,106.62,117.89,105.45,81569],["10-14",113.0,113.75,112.75,113.0,59901,111.93,106.83,117.9,105.96,80057],["10-15",110.15,110.15,108.55,108.9,391224,112.03,106.99,117.71,106.35,95486],["10-16",109.45,109.7,108.9,109.0,111920,112.17,107.1,117.4,106.94,98299],["10-19",107.45,108.3,107.1,108.15,143680,112.23,107.17,117.24,107.22,102015],["10-20",107.65,108.3,107.05,107.25,105412,112.2,107.23,117.35,107.05,104917],["10-21",108.8,109.2,107.6,108.15,76295,112.11,107.34,117.46,106.76,104743],["10-22",108.95,109.15,106.75,106.9,116952,111.89,107.43,117.7,106.08,104872],["10-27",107.1,107.55,105.8,106.6,140567,111.62,107.59,117.87,105.37,107886],["10-28",108.35,108.65,107.8,108.65,50936,111.43,107.83,117.8,105.06,107663],["10-29",108.65,108.65,106.6,107.25,77495,111.18,108.06,117.79,104.57,108213],["10-30",104.8,105.3,103.85,104.95,193796,110.86,108.1,118.0,103.72,112852],["11-02",103.4,104.45,103.05,104.1,142806,110.46,108.13,118.15,102.77,117086],["11-03",102.5,103.35,100.5,100.6,252920,109.85,108.13,118.57,101.13,127144],["11-04",101.55,101.65,97.55,99.85,389968,109.2,108.07,118.82,99.58,143385],["11-05",99.4,99.75,96.9,97.15,425137,108.26,107.96,118.7,97.82,159756],["11-06",89.95,94.45,87.55,92.5,862920,107.06,107.79,118.86,95.26,199589],["11-09",95.65,99.0,94.5,97.45,275981,106.13,107.68,117.88,94.38,210591],["11-10",99.55,100.5,97.8,99.7,183053,105.37,107.6,116.71,94.03,215359],["11-11",101.0,103.25,99.8,103.2,118729,104.79,107.56,115.29,94.29,216515],["11-12",103.5,104.2,100.8,100.95,131091,104.22,107.47,114.24,94.2,212539],["11-13",102.85,104.4,102.1,102.5,123617,103.69,107.4,112.88,94.5,215724],["11-16",101.2,101.45,96.45,96.45,319901,103.07,107.24,112.44,93.7,212158],["11-17",94.55,97.45,93.25,94.0,375583,102.32,107.05,112.07,92.57,225341],["11-18",95.7,95.95,92.35,94.1,288467,101.61,106.9,111.6,91.62,232581],["11-19",94.05,94.5,89.8,90.2,430660,100.76,106.68,111.56,89.96,248843],["11-20",87.25,88.05,83.95,84.45,872914,99.58,106.34,111.96,87.2,288674]]},{"code":"2330","name":"台積電","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":32,"date":"2026-11-20","close":2000.0,"chg":-100.0,"chg_pct":-4.76,"vol":87213,"vma20":40789,"vol_ratio":2.14,"vol_ratio_3d":2.14,"ma5":2132.0,"ma20":2276.0,"ma60":2394.25,"ma20_slope":-3.08,"ma60_slope":-0.87,"bias20":-12.13,"pre_bb_w":12.1,"curr_bb_w":20.0,"rsi14":31.2,"rs_vs_0050":4.56,"atr14":99.29,"stop_loss":1821.28,"stop_pct":-8.94,"target_2r":2393.18,"target_pct":19.66,"b":[["09-14",2385.0,2395.0,2380.0,2380.0,18265,2410.0,2399.17,2474.42,2345.58,17361],["09-15",2405.0,2405.0,2380.0,2385.0,13515,2410.25,2397.08,2474.24,2346.26,17172],["09-16",2375.0,2395.0,2375.0,2380.0,17989,2411.75,2395.25,2471.27,2352.23,17067],["09-17",2405.0,2445.0,2400.0,2425.0,16009,2414.25,2395.83,2471.55,2356.95,17109],["09-18",2460.0,2460.0,2435.0,2460.0,35352,2416.75,2397.0,2477.35,2356.15,18089],["09-21",2445.0,2485.0,2445.0,2480.0,14553,2422.0,2399.33,2485.36,2358.64,18283],["09-22",2505.0,2510.0,2460.0,2460.0,18940,2425.0,2400.83,2489.58,2360.42,18588],["09-23",2475.0,2505.0,2475.0,2500.0,20406,2429.25,2402.33,2501.38,2357.12,18725],["09-24",2480.0,2490.0,2470.0,2475.0,13043,2432.5,2401.83,2506.7,2358.3,18565],["09-29",2475.0,2495.0,2475.0,2475.0,24637,2435.25,2402.0,2511.44,2359.06,19117],["09-30",2495.0,2510.0,2480.0,2480.0,30527,2439.0,2402.58,2516.24,2361.76,19285],["10-01",2490.0,2510.0,2485.0,2510.0,18598,2442.5,2403.42,2525.72,2359.28,19354],["10-02",2505.0,2515.0,2495.0,2500.0,13944,2448.25,2404.42,2530.67,2365.83,19060],["10-05",2550.0,2580.0,2545.0,2575.0,24042,2457.5,2406.25,2552.29,2362.71,19632],["10-06",2575.0,2590.0,2565.0,2585.0,18510,2466.25,2409.08,2573.39,2359.11,19896],["10-07",2565.0,2585.0,2560.0,2585.0,14466,2472.5,2411.5,2591.39,2353.61,19498],["10-08",2550.0,2575.0,2550.0,2550.0,20325,2476.5,2413.67,2600.08,2352.92,19223],["10-12",2510.0,2550.0,2510.0,2540.0,20448,2480.25,2415.33,2606.72,2353.78,19464],["10-13",2500.0,2510.0,2490.0,2490.0,34572,2482.25,2415.67,2608.01,2356.49,20314],["10-14",2505.0,2535.0,2490.0,2490.0,23305,2486.25,2419.0,2607.57,2364.93,20572],["10-15",2420.0,2450.0,2420.0,2440.0,48190,2489.25,2421.0,2602.62,2375.88,22068],["10-16",2430.0,2445.0,2420.0,2420.0,33490,2491.0,2421.17,2598.82,2383.18,23067],["10-19",2395.0,2420.0,2390.0,2420.0,23696,2493.0,2421.5,2593.77,2392.23,23352],["10-20",2400.0,2415.0,2395.0,2405.0,17099,2492.0,2421.5,2595.8,2388.2,23407],["10-21",2425.0,2435.0,2400.0,2420.0,22321,2490.0,2422.67,2597.66,2382.34,22755],["10-22",2435.0,2435.0,2385.0,2385.0,22930,2485.25,2423.25,2602.23,2368.27,23174],["10-27",2380.0,2405.0,2380.0,2400.0,33964,2482.25,2425.25,2604.62,2359.88,23925],["10-28",2420.0,2430.0,2410.0,2425.0,19880,2478.5,2429.0,2603.04,2353.96,23899],["10-29",2420.0,2425.0,2390.0,2415.0,16872,2475.5,2432.5,2603.09,2347.91,24090],["10-30",2380.0,2380.0,2360.0,2370.0,29664,2470.25,2431.58,2605.88,2334.62,24342],["11-02",2310.0,2345.0,2310.0,2330.0,34382,2462.75,2430.92,2611.36,2314.14,24534],["11-03",2300.0,2335.0,2280.0,2295.0,36998,2452.0,2430.5,2615.72,2288.28,25454],["11-04",2320.0,2320.0,2235.0,2260.0,45456,2440.0,2428.08,2622.04,2257.96,27030],["11-05",2250.0,2285.0,2235.0,2240.0,36863,2423.25,2426.0,2613.97,2232.53,27671],["11-06",2020.0,2195.0,2020.0,2135.0,97176,2400.75,2422.08,2614.6,2186.9,31604],["11-09",2210.0,2290.0,2190.0,2235.0,41529,2383.25,2419.67,2591.13,2175.37,32958],["11-10",2265.0,2285.0,2230.0,2285.0,34242,2370.0,2417.83,2567.18,2172.82,33653],["11-11",2330.0,2395.0,2305.0,2395.0,30510,2362.75,2417.5,2544.45,2181.05,34156],["11-12",2385.0,2395.0,2330.0,2340.0,29205,2355.25,2415.92,2527.46,2183.04,33888],["11-13",2375.0,2390.0,2340.0,2350.0,28844,2348.25,2415.17,2508.98,2187.52,34165],["11-16",2340.0,2350.0,2215.0,2215.0,44330,2337.0,2412.08,2501.91,2172.09,33972],["11-17",2195.0,2270.0,2155.0,2170.0,54811,2324.5,2408.58,2499.91,2149.09,35038],["11-18",2200.0,2210.0,2150.0,2175.0,42413,2312.25,2405.67,2493.4,2131.1,35974],["11-19",2165.0,2190.0,2085.0,2100.0,48513,2297.0,2401.08,2494.92,2099.08,37545],["11-20",2035.0,2060.0,1970.0,2000.0,87213,2276.0,2394.25,2504.09,2047.91,40789]]},{"code":"2317","name":"鴻海","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":33,"date":"2026-11-20","close":210.0,"chg":-10.5,"chg_pct":-4.76,"vol":68840,"vma20":46600,"vol_ratio":1.48,"vol_ratio_3d":1.48,"ma5":217.8,"ma20":236.3,"ma60":244.94,"ma20_slope":-2.58,"ma60_slope":-1.02,"bias20":-11.13,"pre_bb_w":7.7,"curr_bb_w":20.7,"rsi14":25.3,"rs_vs_0050":5.91,"atr14":11.75,"stop_loss":188.85,"stop_pct":-10.07,"target_2r":256.53,"target_pct":22.16,"b":[["09-14",244.5,249.5,243.5,248.5,21657,249.57,249.3,257.32,241.82,31397],["09-15",247.5,250.0,246.5,246.5,15351,249.45,248.93,257.31,241.59,29762],["09-16",247.5,248.5,246.0,248.0,19283,249.6,248.74,257.23,241.97,28984],["09-17",249.5,253.5,249.5,250.5,25821,249.8,248.65,257.3,242.3,28988],["09-18",252.5,253.0,249.0,250.5,43948,250.05,248.53,257.29,242.81,29978],["09-21",251.5,252.0,249.0,250.0,16241,250.38,248.56,256.97,243.79,29669],["09-22",252.0,254.0,250.5,253.0,37641,250.88,248.67,256.61,245.15,29782],["09-23",255.0,257.0,255.0,256.0,34725,251.35,248.75,257.13,245.57,30342],["09-24",253.0,253.0,249.5,250.5,33005,251.28,248.79,257.06,245.5,29955],["09-29",247.0,254.0,247.0,250.5,30194,251.15,248.98,256.89,245.41,29928],["09-30",253.5,254.0,251.5,251.5,26479,251.22,249.17,256.93,245.51,29529],["10-01",253.0,254.0,250.5,254.0,26107,251.12,249.37,256.56,245.68,29384],["10-02",253.0,253.0,250.5,251.0,28438,251.12,249.6,256.56,245.68,29415],["10-05",254.0,256.0,253.5,254.0,45308,251.45,249.88,256.76,246.14,30245],["10-06",263.0,266.5,253.5,256.0,94845,251.45,250.18,256.76,246.14,32603],["10-07",254.0,254.5,251.5,252.0,35038,251.25,250.44,256.14,246.36,32697],["10-08",251.0,251.0,249.0,249.0,38527,251.12,250.67,256.11,246.13,32680],["10-12",245.0,246.0,243.5,244.5,49946,250.75,250.76,256.49,245.01,34212],["10-13",243.5,243.5,239.0,240.0,42787,250.2,250.72,257.61,242.79,34441],["10-14",241.5,246.0,241.0,243.0,33318,249.95,250.87,257.95,241.95,34932],["10-15",240.0,240.0,238.0,239.5,46505,249.5,250.95,258.7,240.3,36175],["10-16",241.5,247.0,240.5,244.0,49281,249.38,250.92,258.8,239.96,37871],["10-19",242.0,242.5,238.5,239.5,29320,248.95,250.72,259.3,238.6,38373],["10-20",238.0,244.5,237.0,241.5,26245,248.5,250.45,259.32,237.68,38394],["10-21",244.5,250.0,244.5,250.0,53398,248.47,250.41,259.27,237.67,38867],["10-22",249.5,250.5,244.5,245.0,25993,248.22,250.28,259.1,237.34,39355],["10-27",246.5,248.5,244.0,247.5,52105,247.95,250.43,258.61,237.29,40078],["10-28",248.0,252.0,246.5,251.5,41376,247.72,250.68,257.87,237.57,40410],["10-29",250.0,253.5,247.0,248.0,20886,247.6,250.98,257.67,237.53,39804],["10-30",245.0,246.0,240.0,245.5,32648,247.35,250.9,257.37,237.33,39927],["11-02",244.5,252.0,242.5,251.0,48353,247.32,250.87,257.3,237.34,41021],["11-03",249.0,250.0,243.5,245.5,43373,246.9,250.79,256.42,237.38,41884],["11-04",247.5,247.5,236.5,240.0,60200,246.35,250.48,256.12,236.58,43472],["11-05",239.0,241.5,234.0,235.0,48133,245.4,249.99,255.69,235.11,43613],["11-06",213.0,227.5,212.5,224.5,87159,243.82,249.4,256.51,231.13,43229],["11-09",226.5,246.0,226.5,239.0,48027,243.18,248.97,255.45,230.91,43879],["11-10",244.0,247.5,238.5,241.5,44617,242.8,248.62,254.79,230.81,44183],["11-11",241.5,242.5,236.0,242.0,23848,242.68,248.15,254.65,230.71,42878],["11-12",239.5,245.0,239.0,240.0,27821,242.68,247.78,254.65,230.71,42130],["11-13",244.0,244.5,238.0,241.0,40256,242.57,247.47,254.56,230.58,42477],["11-16",238.0,238.0,217.5,218.5,75859,241.53,246.87,257.45,225.61,43944],["11-17",217.0,227.5,215.0,219.0,52986,240.28,246.37,258.92,221.64,44130],["11-18",222.0,224.5,215.0,221.0,39482,239.35,245.97,259.8,218.9,44638],["11-19",221.0,225.5,217.0,220.5,50049,238.3,245.53,260.3,216.3,45828],["11-20",215.0,217.0,208.0,210.0,68840,236.3,244.94,260.81,211.79,46600]]},{"code":"2454","name":"聯發科","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":32,"date":"2026-11-20","close":3350.0,"chg":-370.0,"chg_pct":-9.95,"vol":19027,"vma20":12672,"vol_ratio":1.5,"vol_ratio_3d":1.5,"ma5":3729.0,"ma20":3826.75,"ma60":4296.58,"ma20_slope":-2.87,"ma60_slope":-0.24,"bias20":-12.46,"pre_bb_w":22.1,"curr_bb_w":23.7,"rsi14":38.6,"rs_vs_0050":2.83,"atr14":320.0,"stop_loss":2774.0,"stop_pct":-17.19,"target_2r":4617.2,"target_pct":37.83,"b":[["09-14",4475.0,4650.0,4435.0,4560.0,5643,4187.25,4001.92,4926.42,3448.08,7355],["09-15",4505.0,4575.0,4430.0,4430.0,5699,4214.5,4001.33,4947.25,3481.75,7220],["09-16",4435.0,4625.0,4435.0,4530.0,5895,4248.75,4001.25,4973.2,3524.3,7206],["09-17",4565.0,4700.0,4500.0,4500.0,5950,4288.75,4004.83,4974.92,3602.58,6945],["09-18",4600.0,4735.0,4545.0,4710.0,9019,4334.75,4011.5,5004.16,3665.34,7113],["09-21",4800.0,5035.0,4780.0,5010.0,9541,4397.0,4030.33,5074.4,3719.6,7439],["09-22",5280.0,5480.0,5150.0,5180.0,10551,4469.25,4051.5,5156.97,3781.53,7735],["09-23",5220.0,5265.0,5140.0,5185.0,5917,4531.25,4067.17,5241.94,3820.56,7656],["09-24",5105.0,5360.0,5105.0,5285.0,7157,4602.25,4083.0,5316.23,3888.27,7760],["09-29",5150.0,5195.0,4890.0,4910.0,11051,4648.5,4092.42,5314.8,3982.2,8103],["09-30",5010.0,5100.0,4920.0,4920.0,7582,4698.25,4104.5,5284.85,4111.65,8147],["10-01",4875.0,4980.0,4875.0,4980.0,3873,4731.5,4118.75,5302.62,4160.38,8213],["10-02",4950.0,4970.0,4880.0,4950.0,3845,4765.25,4134.08,5303.3,4227.2,7324],["10-05",4980.0,5165.0,4980.0,5165.0,6769,4806.5,4153.58,5334.21,4278.79,7246],["10-06",5080.0,5085.0,4915.0,4920.0,8284,4831.75,4170.17,5329.6,4333.9,7245],["10-07",4920.0,4940.0,4835.0,4835.0,5659,4835.5,4187.0,5332.26,4338.74,6797],["10-08",4800.0,4850.0,4690.0,4690.0,6416,4834.5,4204.17,5332.34,4336.66,6825],["10-12",4615.0,4660.0,4545.0,4625.0,6371,4834.5,4218.92,5332.34,4336.66,6907],["10-13",4485.0,4575.0,4460.0,4525.0,6590,4824.75,4232.67,5338.56,4310.94,6932],["10-14",4525.0,4600.0,4475.0,4475.0,6611,4819.25,4251.08,5345.42,4293.08,6921],["10-15",4195.0,4295.0,4145.0,4165.0,14522,4799.5,4264.83,5388.96,4210.04,7365],["10-16",4275.0,4360.0,4240.0,4250.0,7757,4790.5,4274.5,5407.12,4173.88,7468],["10-19",4150.0,4250.0,4145.0,4205.0,5367,4774.25,4280.42,5433.15,4115.35,7441],["10-20",4260.0,4305.0,4120.0,4150.0,5623,4756.75,4285.0,5460.9,4052.6,7425],["10-21",4215.0,4295.0,4095.0,4140.0,8028,4728.25,4291.5,5482.05,3974.45,7375],["10-22",4230.0,4230.0,4005.0,4010.0,5911,4678.25,4297.0,5481.69,3874.81,7194],["10-27",4035.0,4075.0,3910.0,3960.0,12002,4617.25,4307.75,5443.96,3790.54,7266],["10-28",4040.0,4245.0,4040.0,4235.0,6958,4569.75,4325.83,5369.24,3770.26,7318],["10-29",4205.0,4225.0,4000.0,4045.0,6123,4507.75,4339.33,5267.07,3748.43,7267],["10-30",3820.0,3990.0,3805.0,3915.0,11316,4458.0,4345.33,5235.54,3680.46,7280],["11-02",3790.0,4070.0,3790.0,3970.0,11680,4410.5,4346.33,5185.41,3635.59,7485],["11-03",3960.0,3960.0,3665.0,3675.0,11274,4345.25,4343.17,5136.95,3553.55,7855],["11-04",3740.0,3760.0,3455.0,3715.0,13883,4283.5,4338.42,5069.52,3497.48,8357],["11-05",3600.0,3715.0,3450.0,3460.0,11877,4198.25,4330.75,4952.56,3443.94,8612],["11-06",3115.0,3480.0,3115.0,3390.0,21324,4121.75,4322.25,4878.09,3365.41,9264],["11-09",3535.0,3725.0,3450.0,3725.0,9200,4066.25,4318.33,4765.86,3366.64,9441],["11-10",3940.0,4065.0,3745.0,3830.0,18469,4023.25,4315.17,4667.78,3378.72,10044],["11-11",3840.0,3990.0,3780.0,3990.0,10000,3991.5,4314.75,4573.89,3409.11,10225],["11-12",4050.0,4120.0,3805.0,3850.0,12024,3957.75,4308.5,4488.51,3426.99,10497],["11-13",4235.0,4235.0,4060.0,4120.0,13615,3940.0,4307.0,4421.87,3458.13,10847],["11-16",4100.0,4100.0,3795.0,3795.0,11247,3921.5,4302.75,4395.75,3447.25,10683],["11-17",3705.0,3970.0,3695.0,3840.0,14432,3901.0,4302.0,4351.53,3450.47,11017],["11-18",3995.0,4075.0,3775.0,3940.0,15132,3887.75,4303.58,4316.81,3458.69,11505],["11-19",3995.0,4045.0,3660.0,3720.0,17964,3866.25,4303.92,4283.53,3448.97,12122],["11-20",3480.0,3655.0,3350.0,3350.0,19027,3826.75,4296.58,4280.83,3372.67,12672]]},{"code":"2382","name":"廣達","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":30,"date":"2026-11-20","close":252.0,"chg":-10.5,"chg_pct":-4.0,"vol":17460,"vma20":16128,"vol_ratio":1.08,"vol_ratio_3d":1.42,"ma5":261.3,"ma20":294.62,"ma60":320.38,"ma20_slope":-4.78,"ma60_slope":-1.7,"bias20":-14.47,"pre_bb_w":7.6,"curr_bb_w":32.4,"rsi14":12.1,"rs_vs_0050":-1.37,"atr14":13.36,"stop_loss":227.95,"stop_pct":-9.54,"target_2r":304.91,"target_pct":21.0,"b":[["09-14",330.0,334.0,328.5,332.5,7890,333.93,338.21,347.27,320.59,13446],["09-15",331.0,338.0,330.5,333.0,7868,334.23,337.43,347.19,321.27,13150],["09-16",334.5,341.0,333.0,340.5,16761,334.7,336.89,347.85,321.55,13175],["09-17",341.5,346.0,340.0,344.0,15911,335.55,336.43,348.8,322.3,13374],["09-18",346.5,346.5,340.0,343.0,21255,336.62,336.03,348.56,324.68,14011],["09-21",344.0,344.5,339.0,344.5,8078,337.6,335.74,348.74,326.46,14133],["09-22",348.5,349.0,340.0,342.0,10845,338.27,335.32,348.74,327.8,14289],["09-23",342.5,343.0,340.0,341.5,9376,338.73,334.88,348.94,328.52,14349],["09-24",338.0,339.5,335.0,338.5,9170,338.98,334.32,348.9,329.06,14259],["09-29",341.0,342.0,336.5,336.5,9674,339.18,333.78,348.73,329.63,14223],["09-30",340.0,340.5,333.5,333.5,11671,338.93,333.06,348.79,329.07,14005],["10-01",333.0,335.0,330.0,334.0,14409,338.52,332.32,348.5,328.54,14035],["10-02",333.0,334.5,330.0,332.0,9953,338.27,331.64,348.63,327.91,14071],["10-05",335.0,336.0,330.0,331.0,13259,338.07,330.88,348.82,327.32,14153],["10-06",332.5,336.0,331.5,333.5,9726,337.5,330.21,347.94,327.06,13645],["10-07",335.0,337.5,332.5,335.0,9442,336.88,329.49,346.29,327.47,13452],["10-08",328.0,328.5,321.0,325.5,16798,336.75,328.58,346.68,326.82,12599],["10-12",320.0,325.5,319.0,322.0,8115,335.75,327.6,347.27,324.23,11713],["10-13",318.0,325.0,317.0,323.0,10334,335.1,327.12,347.89,322.31,11569],["10-14",325.0,326.5,322.0,323.0,11851,334.43,327.07,348.23,320.63,11619],["10-15",320.5,320.5,313.5,316.5,14860,333.62,327.08,349.48,317.76,11967],["10-16",320.0,324.5,319.0,322.0,9511,333.07,327.05,349.72,316.42,12049],["10-19",317.0,318.0,311.0,314.5,9575,331.77,326.81,349.89,313.65,11690],["10-20",311.0,325.0,311.0,320.5,8309,330.6,326.55,348.45,312.75,11310],["10-21",326.0,328.5,325.0,328.5,10164,329.88,326.56,346.81,312.95,10756],["10-22",325.0,326.5,321.0,322.0,8500,328.75,326.56,344.59,312.91,10777],["10-27",331.5,338.0,321.5,327.5,14877,328.02,326.79,342.65,313.39,10978],["10-28",326.5,331.0,325.0,330.0,11454,327.45,327.13,340.77,314.13,11082],["10-29",330.0,330.0,318.0,318.0,11490,326.43,327.78,339.33,313.53,11198],["10-30",311.0,318.0,308.0,318.0,13400,325.5,328.23,338.03,312.97,11384],["11-02",319.0,323.0,314.0,318.0,7980,324.73,328.58,337.1,312.36,11200],["11-03",315.0,318.5,309.5,311.5,10540,323.6,328.77,336.47,310.73,11006],["11-04",314.0,314.0,299.0,302.5,18367,322.12,328.74,337.35,306.89,11427],["11-05",301.5,307.0,298.0,300.0,12962,320.57,328.71,338.02,303.12,11412],["11-06",275.0,294.5,272.0,290.5,36787,318.43,328.58,339.25,297.61,12765],["11-09",290.0,304.0,290.0,296.5,18942,316.5,328.3,337.95,295.05,13240],["11-10",298.0,304.0,293.5,298.5,13966,315.15,328.02,337.54,292.76,13099],["11-11",296.0,299.5,290.0,298.0,11846,313.95,327.56,337.29,290.61,13285],["11-12",294.0,296.0,278.5,278.5,31454,311.73,326.78,339.3,284.16,14341],["11-13",282.5,283.5,276.5,276.5,13309,309.4,325.93,340.4,278.4,14414],["11-16",275.0,276.5,262.5,264.5,20884,306.8,324.78,343.23,270.37,14715],["11-17",263.0,269.0,255.0,262.5,15063,303.82,323.71,344.29,263.35,14993],["11-18",264.5,266.5,253.0,265.0,22123,301.35,322.61,344.85,257.85,15620],["11-19",263.5,266.5,257.5,262.5,11158,298.45,321.53,344.14,252.76,15763],["11-20",255.0,257.0,247.5,252.0,17460,294.62,320.38,342.37,246.87,16128]]},{"code":"2603","name":"長榮","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":35,"date":"2026-11-20","close":233.0,"chg":-14.0,"chg_pct":-5.67,"vol":16718,"vma20":10924,"vol_ratio":1.53,"vol_ratio_3d":1.53,"ma5":250.2,"ma20":257.5,"ma60":246.99,"ma20_slope":-0.97,"ma60_slope":0.29,"bias20":-9.51,"pre_bb_w":10.5,"curr_bb_w":14.6,"rsi14":24.8,"rs_vs_0050":12.4,"atr14":11.18,"stop_loss":212.88,"stop_pct":-8.64,"target_2r":277.26,"target_pct":19.0,"b":[["09-14",235.0,237.0,230.5,237.0,12766,237.2,212.35,250.04,224.36,16131],["09-15",235.0,237.0,231.5,233.5,6874,236.97,213.03,249.9,224.04,14987],["09-16",234.0,241.0,233.0,239.0,12373,236.9,213.86,249.77,224.03,14599],["09-17",236.5,242.5,236.0,242.5,8257,236.72,214.79,249.18,224.26,13488],["09-18",242.0,245.5,238.5,240.5,10539,236.18,215.72,246.82,225.54,12383],["09-21",241.5,243.5,236.5,242.0,6140,235.75,216.73,244.59,226.91,11594],["09-22",242.0,243.5,240.0,242.5,6185,235.57,217.71,243.7,227.44,10715],["09-23",241.5,243.0,239.0,243.0,5688,236.18,218.68,244.64,227.72,9622],["09-24",240.5,243.0,239.0,243.0,4851,236.7,219.64,245.48,227.92,8832],["09-29",244.0,244.0,237.5,238.0,6101,237.03,220.52,245.49,228.57,8733],["09-30",239.5,241.0,238.0,239.5,4665,237.32,221.26,245.68,228.96,8433],["10-01",238.0,239.0,235.5,238.0,5882,237.32,221.97,245.68,228.96,8106],["10-02",237.0,240.5,236.5,240.0,5510,237.6,222.83,245.93,229.27,7865],["10-05",240.5,240.5,234.0,234.5,8761,237.38,223.47,245.79,228.97,7852],["10-06",233.0,237.5,232.5,236.5,4126,237.55,224.18,245.73,229.37,7194],["10-07",236.5,238.0,231.5,232.5,8097,237.53,224.8,245.77,229.29,7323],["10-08",232.5,236.0,231.0,232.5,6664,237.7,225.43,245.34,230.06,7348],["10-12",242.0,255.5,241.5,255.5,38256,238.78,226.37,249.47,228.09,8835],["10-13",253.5,264.0,248.0,264.0,61066,240.43,227.43,255.22,225.64,11561],["10-14",260.0,267.5,259.0,263.0,19921,241.85,228.52,259.33,224.37,12136],["10-15",260.5,261.0,254.5,257.0,14965,242.85,229.53,261.36,224.34,12246],["10-16",261.0,270.5,258.5,265.5,17227,244.45,230.57,264.88,224.02,12763],["10-19",263.5,266.5,261.0,262.0,10342,245.6,231.51,267.23,223.97,12662],["10-20",263.0,265.5,257.5,259.5,8377,246.45,232.44,268.85,224.05,12668],["10-21",257.0,261.5,255.5,257.5,10196,247.3,233.3,270.02,224.58,12651],["10-22",256.5,263.0,256.0,260.0,8429,248.2,234.24,271.43,224.97,12765],["10-27",261.0,262.5,254.0,261.5,10266,249.15,235.27,272.92,225.38,12969],["10-28",261.0,265.5,258.0,263.0,5997,250.15,236.29,274.47,225.83,12984],["10-29",261.0,266.0,260.5,261.0,5035,251.05,237.29,275.58,226.52,12994],["10-30",261.0,271.5,259.0,271.5,22660,252.72,238.42,278.02,227.42,13822],["11-02",271.0,274.5,269.0,274.5,12200,254.47,239.53,280.69,228.25,14198],["11-03",272.5,273.0,264.0,266.5,10438,255.9,240.54,281.48,230.32,14426],["11-04",264.5,268.5,261.0,268.0,8874,257.3,241.59,282.3,232.3,14594],["11-05",269.5,269.5,257.0,259.0,11835,258.52,242.51,281.23,235.81,14748],["11-06",240.0,249.0,236.5,246.5,17023,259.02,243.16,280.15,237.89,15393],["11-09",244.5,249.5,243.5,245.5,10036,259.68,243.68,278.14,241.22,15490],["11-10",248.0,257.5,248.0,255.5,8544,260.82,244.31,274.65,246.99,15584],["11-11",259.5,264.5,253.0,257.5,8626,260.93,245.03,274.63,247.23,14102],["11-12",258.0,259.0,251.0,251.5,7316,260.3,245.62,274.51,246.09,11415],["11-13",252.5,260.0,251.0,257.5,11071,260.02,246.27,274.23,245.81,10972],["11-16",257.0,264.0,256.0,257.0,9921,260.02,246.69,274.23,245.81,10720],["11-17",260.0,263.0,253.0,256.5,11799,259.57,247.0,273.62,245.52,10449],["11-18",258.0,261.0,255.0,257.5,9191,259.35,247.28,273.39,245.31,10391],["11-19",256.5,259.5,243.0,247.0,12507,258.73,247.3,273.76,243.7,10598],["11-20",243.0,244.0,230.5,233.0,16718,257.5,246.99,276.26,238.74,10924]]},{"code":"2881","name":"富邦金","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":33,"date":"2026-11-20","close":136.5,"chg":-11.5,"chg_pct":-7.77,"vol":33422,"vma20":22871,"vol_ratio":1.46,"vol_ratio_3d":1.46,"ma5":147.2,"ma20":154.95,"ma60":152.17,"ma20_slope":-1.76,"ma60_slope":1.0,"bias20":-11.91,"pre_bb_w":7.6,"curr_bb_w":16.3,"rsi14":29.1,"rs_vs_0050":8.03,"atr14":8.0,"stop_loss":122.1,"stop_pct":-10.55,"target_2r":168.18,"target_pct":23.21,"b":[["09-14",146.5,154.5,146.0,154.0,18222,142.2,132.34,157.6,126.8,20405],["09-15",154.0,154.5,149.5,151.0,15566,143.28,132.55,157.97,128.59,20074],["09-16",152.0,153.0,150.0,153.0,20660,144.5,132.81,158.1,130.9,20482],["09-17",153.0,154.5,151.0,151.5,13452,145.68,133.09,157.29,134.07,20225],["09-18",152.5,152.5,148.0,150.5,27506,146.5,133.33,156.96,136.04,19749],["09-21",150.5,156.0,149.5,154.5,14916,147.62,133.68,156.29,138.95,19824],["09-22",156.5,156.5,153.5,154.5,16750,148.28,134.11,156.97,139.59,18392],["09-23",155.5,155.5,152.5,153.0,14725,149.0,134.5,156.66,141.34,17707],["09-24",151.5,153.0,150.0,150.0,8193,149.43,134.96,156.28,142.58,17049],["09-29",150.0,155.0,150.0,151.5,14036,149.8,135.49,156.23,143.37,16935],["09-30",153.0,153.5,151.0,151.0,11153,150.15,135.99,156.02,144.28,15833],["10-01",151.0,151.5,147.5,150.5,17965,150.43,136.47,155.8,145.06,15771],["10-02",149.0,151.5,149.0,150.5,10154,150.78,136.93,155.11,146.45,15633],["10-05",152.5,153.0,151.0,152.0,11000,151.03,137.37,155.02,147.04,15262],["10-06",151.5,154.5,151.5,154.5,16436,151.22,137.87,155.48,146.96,15145],["10-07",154.5,155.5,154.0,155.5,12086,151.53,138.34,156.1,146.96,14685],["10-08",154.5,155.5,152.5,153.0,14000,151.72,138.81,156.18,147.26,14788],["10-12",152.5,160.0,152.5,158.5,16491,152.3,139.31,157.12,147.48,14797],["10-13",156.0,161.5,156.0,160.0,19125,152.88,139.89,158.44,147.32,15146],["10-14",158.5,160.5,155.5,160.5,27953,153.47,140.49,159.57,147.37,16019],["10-15",160.5,160.5,157.0,159.5,23892,153.75,141.09,160.39,147.11,16302],["10-16",159.0,164.5,158.0,161.5,26122,154.28,141.72,161.6,146.96,16830],["10-19",160.5,161.0,156.5,158.5,16024,154.55,142.25,162.07,147.03,16598],["10-20",156.0,157.5,153.5,153.5,14278,154.65,142.67,162.05,147.25,16640],["10-21",155.0,159.0,154.0,158.5,16695,155.05,143.18,162.38,147.72,16099],["10-22",158.5,160.0,157.5,158.5,10328,155.25,143.66,162.72,147.78,15870],["10-27",163.5,164.0,158.5,162.0,23555,155.62,144.27,163.64,147.6,16210],["10-28",161.0,164.0,160.5,161.0,10153,156.03,144.9,164.28,147.78,15981],["10-29",160.5,163.5,160.5,162.0,11113,156.62,145.53,164.77,148.47,16127],["10-30",160.0,161.5,158.0,161.5,13074,157.12,146.06,165.18,149.06,16079],["11-02",163.0,163.0,158.5,159.5,19515,157.55,146.56,165.16,149.94,16497],["11-03",159.5,160.5,153.5,154.0,23543,157.72,146.98,164.82,150.62,16776],["11-04",154.0,156.0,152.0,154.5,22753,157.93,147.4,164.4,151.46,17406],["11-05",156.5,159.5,154.0,155.5,16944,158.1,147.89,164.09,152.11,17704],["11-06",140.5,151.0,140.0,148.0,47797,157.78,148.24,165.08,150.48,19272],["11-09",149.0,156.5,148.5,153.5,23381,157.68,148.66,165.15,150.21,19836],["11-10",153.5,157.0,151.5,153.0,18832,157.68,149.07,165.15,150.21,20078],["11-11",153.5,159.5,150.0,159.5,22212,157.72,149.62,165.23,150.21,20364],["11-12",158.5,160.5,155.5,159.0,20051,157.68,150.12,165.14,150.22,20410],["11-13",159.0,163.5,158.0,161.5,20663,157.72,150.66,165.27,150.17,20046],["11-16",162.5,162.5,152.0,152.0,27509,157.35,151.1,165.24,149.46,20227],["11-17",151.0,154.5,145.0,150.5,34720,156.8,151.45,164.99,148.61,20657],["11-18",152.0,153.0,147.5,149.0,27804,156.32,151.79,165.14,147.5,21246],["11-19",148.5,149.0,142.5,148.0,30060,156.05,152.12,165.52,146.58,22035],["11-20",145.5,145.5,134.0,136.5,33422,154.95,152.17,167.6,142.3,22871]]},{"code":"2891","name":"中信金","sector":"上市・權值","cat":"downtrend","cat_label":"❄️ 跌破生命線・空頭觀望","score":36,"date":"2026-11-20","close":68.0,"chg":-5.1,"chg_pct":-6.98,"vol":79277,"vma20":49796,"vol_ratio":1.59,"vol_ratio_3d":1.59,"ma5":73.76,"ma20":74.66,"ma60":70.57,"ma20_slope":0.17,"ma60_slope":1.03,"bias20":-8.92,"pre_bb_w":6.6,"curr_bb_w":11.2,"rsi14":36.9,"rs_vs_0050":12.82,"atr14":3.87,"stop_loss":61.03,"stop_pct":-10.25,"target_2r":83.33,"target_pct":22.54,"b":[["09-14",67.1,68.1,66.5,68.1,27850,65.95,66.37,69.15,62.75,30707],["09-15",69.5,69.9,68.2,69.7,58918,66.11,66.36,69.7,62.52,32334],["09-16",70.1,71.0,69.5,70.8,50021,66.41,66.33,70.49,62.33,33143],["09-17",70.8,71.7,70.1,71.2,35385,66.8,66.36,71.14,62.46,31960],["09-18",72.0,72.0,68.9,69.5,74483,67.03,66.34,71.44,62.62,33126],["09-21",69.5,71.0,69.0,70.4,20988,67.36,66.34,71.71,63.01,33311],["09-22",71.0,71.0,69.5,69.6,16566,67.62,66.33,71.86,63.38,33124],["09-23",70.0,70.0,68.9,68.9,20397,67.84,66.29,71.88,63.8,32730],["09-24",68.1,69.1,68.1,68.5,17429,68.07,66.26,71.67,64.47,32347],["09-29",67.3,69.7,67.3,68.7,27386,68.28,66.24,71.46,65.1,32739],["09-30",69.6,69.6,68.4,68.4,26239,68.47,66.2,71.19,65.75,32078],["10-01",68.1,68.4,67.1,67.9,28324,68.54,66.14,71.13,65.95,31520],["10-02",67.3,68.0,67.3,67.3,18627,68.58,66.09,71.08,66.08,30792],["10-05",68.4,68.4,67.3,67.4,16188,68.57,66.03,71.08,66.06,29753],["10-06",67.5,68.5,67.5,68.4,29657,68.57,66.0,71.08,66.06,29788],["10-07",68.8,69.5,68.3,68.7,20220,68.64,66.04,71.09,66.19,29344],["10-08",68.7,69.2,67.3,67.3,23072,68.59,66.08,71.1,66.08,29118],["10-12",68.2,70.2,67.4,69.8,38755,68.75,66.18,71.14,66.36,29616],["10-13",68.6,72.0,68.6,71.6,60158,68.97,66.33,71.56,66.38,31661],["10-14",71.9,71.9,70.6,71.4,30862,69.18,66.48,71.83,66.53,32076],["10-15",72.0,73.6,70.7,72.9,76143,69.42,66.67,72.48,66.36,34490],["10-16",72.6,75.3,72.6,73.6,50627,69.61,66.85,73.17,66.05,34076],["10-19",74.8,74.8,72.8,73.4,35080,69.75,67.01,73.65,65.85,33329],["10-20",72.0,72.9,71.5,71.6,28664,69.77,67.14,73.7,65.84,32993],["10-21",73.0,74.9,71.8,74.8,43865,70.03,67.33,74.53,65.53,31462],["10-22",73.9,75.5,73.9,74.9,32070,70.25,67.53,75.22,65.28,32016],["10-27",76.9,76.9,74.0,75.0,54658,70.53,67.74,75.9,65.16,33921],["10-28",74.1,75.2,73.8,74.2,23207,70.79,67.94,76.34,65.24,34061],["10-29",74.5,76.2,74.1,75.3,37402,71.13,68.15,76.9,65.36,35060],["10-30",75.0,75.8,74.0,75.8,49930,71.48,68.33,77.48,65.48,36187],["11-02",76.4,76.4,74.1,75.0,46344,71.81,68.5,77.82,65.8,37192],["11-03",75.5,75.5,72.9,74.2,47294,72.13,68.66,77.94,66.32,38141],["11-04",74.0,74.5,72.2,73.2,41687,72.42,68.78,77.81,67.03,39294],["11-05",74.2,75.0,73.1,74.9,54381,72.8,68.95,77.76,67.84,41203],["11-06",69.2,74.4,67.5,73.4,58254,73.05,69.08,77.59,68.51,42633],["11-09",73.4,76.2,72.8,75.9,56533,73.41,69.23,77.64,69.18,44449],["11-10",74.7,75.8,73.1,73.7,36545,73.73,69.35,76.9,70.56,45122],["11-11",73.3,74.7,72.6,74.7,40305,73.97,69.48,76.6,71.34,45200],["11-12",74.6,75.7,73.9,75.4,35396,74.16,69.63,76.61,71.71,43962],["11-13",75.8,79.8,75.3,78.7,62901,74.53,69.85,77.37,71.69,45564],["11-16",79.8,80.6,76.2,76.8,46421,74.72,70.03,77.62,71.82,44078],["11-17",77.5,79.4,75.1,77.5,60379,74.92,70.22,78.01,71.83,44565],["11-18",76.9,77.8,73.0,73.4,65770,74.92,70.36,78.01,71.83,46100],["11-19",76.6,76.6,71.5,73.1,67177,75.0,70.52,77.83,72.17,48025],["11-20",70.1,72.5,66.3,68.0,79277,74.66,70.57,78.82,70.5,49796]]}];
+
+    let currentFilter = 'all';
+    let selectedStock = STOCKS_DATA[0];
+    let currentLesson = 0;
+
+    function switchTab(tab) {
+      ['screener', 'academy', 'diy'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById('tabBtn-' + t);
+        if (t === tab) {
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-[var(--muted-foreground)]');
+        } else {
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-[var(--muted-foreground)]');
+        }
+      });
+      if (tab === 'screener') drawStockChart();
+      if (tab === 'academy') { selectLesson(currentLesson); updateExpectancySim(); }
+      if (tab === 'diy') runDiyCheck();
+    }
+
+    function setFilter(f) {
+      currentFilter = f;
+      document.querySelectorAll('#categoryFilters .filter-btn').forEach(btn => {
+        btn.classList.toggle('filter-active', btn.getAttribute('data-filter') === f);
+      });
+      renderStockList();
+    }
+
+    function getCatBadgeStyle(cat) {
+      if (cat === 'breakout') return 'bg-red-500/15 text-red-500 border border-red-500/30';
+      if (cat === 'squeeze') return 'bg-amber-500/15 text-amber-500 border border-amber-500/30';
+      if (cat === 'overextended') return 'bg-orange-500/15 text-orange-500 border border-orange-500/30';
+      if (cat === 'benchmark') return 'bg-blue-500/15 text-blue-500 border border-blue-500/30';
+      return 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30';
+    }
+
+    function getShortVerdict(s) {
+      if (s.cat === 'breakout') {
+        return `站上 20MA 生命線 (乖離 ${s.bias20 > 0 ? '+' : ''}${s.bias20}%)，近3日最大量比 ${s.vol_ratio_3d}x，領先大盤 +${s.rs_vs_0050}%`;
+      }
+      if (s.cat === 'squeeze') {
+        return `前期布林帶寬壓縮至 ${s.pre_bb_w}%，緊貼 20MA (${s.bias20 > 0 ? '+' : ''}${s.bias20}%)，等帶量 >1.5x 突破訊號`;
+      }
+      if (s.cat === 'overextended') {
+        return `短線急漲與 20MA 正乖離達 +${s.bias20}% (>12% 警戒區)，切勿追高，等拉回 5MA/10MA`;
+      }
+      if (s.cat === 'benchmark') {
+        return `台股大盤基準 ETF，目前位於 20MA 下方 (${s.bias20}%)，作為個股強弱對照基準`;
+      }
+      return `跌破 20MA 生命線 (${s.bias20}%) 且月線下彎 (${s.ma20_slope}%)，空頭排列切勿摸底接刀`;
+    }
+
+    function renderStockList() {
+      const container = document.getElementById('stockListContainer');
+      const filtered = STOCKS_DATA.filter(s => currentFilter === 'all' ? true : s.cat === currentFilter);
+      document.getElementById('listCountLabel').textContent = `共 ${filtered.length} 檔`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center space-y-2">
+          <div class="text-2xl">🛡️</div>
+          <div class="font-bold text-sm">目前沒有符合此條件的個股</div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+            當大盤劇烈回檔、市場沒有合格的起漲波標的時，<strong>「空手觀望、不亂接刀」</strong>就是保護本金最重要的一課！請點選「全部台股」檢視目前大盤與個股是否跌破 20MA 生命線。
+          </p>
+        </div>`;
+        return;
+      }
+      if (filtered.length > 0 && !filtered.find(s => s.code === selectedStock.code)) {
+        selectedStock = filtered[0];
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isSelected = s.code === selectedStock.code;
+        // Taiwan stock convention: Red = Up, Green = Down
+        const priceColor = s.chg > 0 ? 'text-red-500' : (s.chg < 0 ? 'text-emerald-500' : 'text-[var(--foreground)]');
+        const sign = s.chg > 0 ? '+' : '';
+        return `
+          <div onclick="selectStock('${s.code}')" class="p-3.5 cursor-pointer transition hover:bg-[var(--secondary)] ${isSelected ? 'stock-row-active' : ''}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm">${s.code} ${s.name}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full ${getCatBadgeStyle(s.cat)}">${s.cat_label}</span>
+              </div>
+              <div class="text-right">
+                <span class="font-bold text-sm ${priceColor}">${s.close}</span>
+                <span class="text-xs ml-1 font-medium ${priceColor}">(${sign}${s.chg_pct}%)</span>
+              </div>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <span class="truncate pr-2">${getShortVerdict(s)}</span>
+              <span class="shrink-0 font-semibold text-[var(--foreground)]">評分 ${s.score}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderDetail();
+    }
+
+    function selectStock(code) {
+      const found = STOCKS_DATA.find(s => s.code === code);
+      if (found) {
+        selectedStock = found;
+        renderStockList();
+        if (window.innerWidth < 1024) {
+          const dp = document.getElementById('detailPanel');
+          if (dp) dp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }
+
+    function renderDetail() {
+      const s = selectedStock;
+      const sign = s.chg > 0 ? '+' : '';
+      const priceColor = s.chg > 0 ? 'text-red-500' : (s.chg < 0 ? 'text-emerald-500' : 'text-[var(--foreground)]');
+
+      document.getElementById('detCodeName').textContent = `${s.code} ${s.name}`;
+      document.getElementById('detSector').textContent = s.sector;
+      const badge = document.getElementById('detCatBadge');
+      badge.textContent = s.cat_label;
+      badge.className = `px-2.5 py-0.5 text-xs font-semibold rounded-full ${getCatBadgeStyle(s.cat)}`;
+      document.getElementById('detDateLabel').textContent = `資料日期：${s.date} 收盤｜成交量：${s.vol.toLocaleString()} 張（20日均量 ${s.vma20.toLocaleString()} 張）`;
+
+      const priceEl = document.getElementById('detPrice');
+      priceEl.textContent = s.close;
+      priceEl.className = `text-2xl font-bold ${priceColor}`;
+
+      const chgEl = document.getElementById('detChg');
+      chgEl.textContent = `${sign}${s.chg} (${sign}${s.chg_pct}%)`;
+      chgEl.className = `text-sm font-semibold ${priceColor}`;
+      document.getElementById('detScore').textContent = `${s.score} / 100`;
+
+      // Plain-Language Diagnosis Box
+      const diagBox = document.getElementById('detDiagnosisBox');
+      if (s.cat === 'breakout') {
+        diagBox.className = 'p-3.5 rounded-lg border border-red-500/30 bg-red-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【標準起漲波・剛站上生命線】</strong><br/>
+          ${s.name} 目前股價 <strong>${s.close} 元</strong> 已經正式站上 20MA 月線（<strong>${s.ma20} 元</strong>），且與月線正乖離僅 <strong>+${s.bias20}%</strong>（落在 0%~+9% 的安全起漲區，還沒漲太遠）。近 3 日最大量比達 <strong>${s.vol_ratio_3d} 倍</strong>，過去 20 日表現領先大盤 0050 達 <strong>+${s.rs_vs_0050}%</strong>，屬於有大人照顧的強勢突破結構。<strong>操作紀律：進場後以跌破 ${s.stop_loss} 元（${s.stop_pct}%）作為硬性停損點。</strong>
+        `;
+      } else if (s.cat === 'squeeze') {
+        diagBox.className = 'p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【底部波動收斂 VCP・放自選股等第一根帶量紅K】</strong><br/>
+          ${s.name} 前期布林通道帶寬壓縮到僅 <strong>${s.pre_bb_w}%</strong>（代表籌碼沉澱、浮額洗清），目前股價 <strong>${s.close} 元</strong> 緊貼 20MA 月線（<strong>${s.ma20} 元</strong>，乖離僅 ${s.bias20}%），且近 20 日抗跌度領先大盤 <strong>+${s.rs_vs_0050}%</strong>。目前唯一欠缺的是「攻擊量」（今日量比僅 ${s.vol_ratio}x）。<strong>操作紀律：先加自選股觀察，一旦盤中或收盤站穩 ${(s.ma20 * 1.01).toFixed(1)} 元且成交量放大超過 ${(s.vma20 * 1.4).toFixed(0)} 張，就是標準起漲第一買點！</strong>
+        `;
+      } else if (s.cat === 'overextended') {
+        diagBox.className = 'p-3.5 rounded-lg border border-orange-500/30 bg-orange-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【強勢但短線正乖離過大・千萬別在今天追高！】</strong><br/>
+          ${s.name} 雖然極度強勢（單日大漲 +${s.chg_pct}%、領先大盤 +${s.rs_vs_0050}%），但請看背後數據：目前股價 <strong>${s.close} 元</strong> 距離 20MA 月線（<strong>${s.ma20} 元</strong>）正乖離已經高達 <strong>+${s.bias20}%</strong>（超過 +12% 警戒線）！<strong>教學提醒：散戶最常在這種連續大漲、新聞狂報時衝進去買，結果隔天遇到獲利了結洗盤馬上套牢。正確做法是等它量縮拉回 5MA（約 ${s.ma5} 元）或 10MA 不破再切入。</strong>
+        `;
+      } else if (s.cat === 'benchmark') {
+        diagBox.className = 'p-3.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【台股大盤溫度計・目前處於月線下整理期】</strong><br/>
+          0050 元大台灣50 代表台股大盤整體水位，目前收在 <strong>${s.close} 元</strong>，位於 20MA 月線（<strong>${s.ma20} 元</strong>）下方（乖離 ${s.bias20}%）。當大盤在月線下整理時，<strong>千萬不要亂買弱勢股，只挑選「比大盤早一步站上 20MA、RS 相對強弱為正」的抗跌領頭羊！</strong>
+        `;
+      } else {
+        diagBox.className = 'p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【空頭跌破生命線・嚴禁因為「跌很多很便宜」去接刀！】</strong><br/>
+          為什麼買股票會賠大錢？因為看到 ${s.name} 從高點跌下來覺得便宜去撿！請看背後數據：目前股價 <strong>${s.close} 元</strong> 遠低於 20MA 月線（<strong>${s.ma20} 元</strong>，負乖離達 <strong>${s.bias20}%</strong>），且月線斜率下彎（<strong>${s.ma20_slope}%</strong>）、落後大盤 <strong>${s.rs_vs_0050}%</strong>。上方全是套牢賣壓，<strong>在股價重新站回 20MA 之前，絕對不碰！</strong>
+        `;
+      }
+
+      // Render 4 Supporting Data Cards
+      const pass1 = s.bias20 >= 0 && s.bias20 <= 9.5;
+      const warn1 = s.bias20 > 9.5 || (s.bias20 >= -1.5 && s.bias20 < 0);
+      const pass2 = s.pre_bb_w <= 15.0;
+      const pass3 = s.vol_ratio >= 1.2 || s.vol_ratio_3d >= 1.3;
+      const pass4 = s.rs_vs_0050 > 0;
+
+      const cards = [
+        {
+          title: '① 趨勢生命線 (20MA 月線位置與乖離)',
+          badge: pass1 ? '✅ 安全起漲區' : (warn1 ? '⚠️ 乖離警戒/臨界' : '❌ 跌破生命線'),
+          badgeCls: pass1 ? 'text-red-500 bg-red-500/10' : (warn1 ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10'),
+          valText: `現價 ${s.close} vs 月線 ${s.ma20} (乖離 ${s.bias20 > 0 ? '+' : ''}${s.bias20}%)`,
+          subText: `60MA 季線：${s.ma60} 元｜20MA 近5日斜率：${s.ma20_slope > 0 ? '+' : ''}${s.ma20_slope}%`,
+          explain: '【怎麼看】20MA 是台股波段生命線。股價剛站上 20MA 且正乖離在 0%~+8% 是最佳買點；若低於 20MA 代表空頭套牢，正乖離超過 +12% 則容易短線拉回。'
+        },
+        {
+          title: '② 底部籌碼沉澱 (布林帶寬 VCP 收斂度)',
+          badge: pass2 ? '✅ 底部壓縮極佳' : 'ℹ️ 波動已放大',
+          badgeCls: pass2 ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10',
+          valText: `起漲前最窄帶寬 ${s.pre_bb_w}% → 目前 ${s.curr_bb_w}%`,
+          subText: `合格標準：起漲前帶寬 < 15% 代表籌碼安靜鎖定`,
+          explain: '【怎麼看】真正的大波段起漲前，股價波動會越來越小（布林通道像束口袋一樣收緊），代表散戶沒耐心賣光了，隨後第一根帶量紅K開口向上就是起漲波。'
+        },
+        {
+          title: '③ 量能引爆確認 (今日量 ÷ 20日均量)',
+          badge: pass3 ? '✅ 有量能支持' : '⏳ 量縮等待放量',
+          badgeCls: pass3 ? 'text-red-500 bg-red-500/10' : 'text-amber-500 bg-amber-500/10',
+          valText: `今日量比 ${s.vol_ratio}x ｜近3日最大量比 ${s.vol_ratio_3d}x`,
+          subText: `今日 ${s.vol.toLocaleString()} 張 vs 20日均量 ${s.vma20.toLocaleString()} 張`,
+          explain: '【怎麼看】「股市裡什麼都能騙人，只有成交量不能騙人。」突破月線或盤整區時，量比達 1.3x~2.5x 代表法人/主力真金白銀買進；無量上漲容易是假突破。'
+        },
+        {
+          title: '④ 相對大盤強弱 (RS vs 0050) & RSI動能',
+          badge: pass4 ? '✅ 強於大盤主流' : '❌ 弱於大盤',
+          badgeCls: pass4 ? 'text-red-500 bg-red-500/10' : 'text-emerald-500 bg-emerald-500/10',
+          valText: `領先大盤 ${s.rs_vs_0050 > 0 ? '+' : ''}${s.rs_vs_0050}% ｜RSI(14) = ${s.rsi14}`,
+          subText: `合格標準：RS > 0%（比 0050 抗跌領漲）且 RSI 位於 50~75`,
+          explain: '【怎麼看】大盤跌時它不跌、大盤漲時它衝第一，這就是 RS 相對強弱 > 0% 的意義。買股票永遠要買資金正在匯聚的強勢股，別買落後補漲或破底股。'
+        }
+      ];
+
+      document.getElementById('supportCardsGrid').innerHTML = cards.map(c => `
+        <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-semibold text-xs">${c.title}</span>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold ${c.badgeCls}">${c.badge}</span>
+          </div>
+          <div class="text-sm font-bold">${c.valText}</div>
+          <div class="text-xs text-[var(--muted-foreground)]">${c.subText}</div>
+          <p class="text-xs text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] leading-relaxed">${c.explain}</p>
+        </div>
+      `).join('');
+
+      // Render Risk/Reward Discipline Calculator
+      const cap = parseFloat(document.getElementById('capitalInput').value) || 200000;
+      const shares = Math.max(1, Math.floor(cap / s.close));
+      const maxLossNTD = Math.round(shares * (s.close - s.stop_loss));
+      const targetGainNTD = Math.round(shares * (s.target_2r - s.close));
+
+      document.getElementById('riskCalcGrid').innerHTML = `
+        <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)]">
+          <div class="text-xs text-[var(--muted-foreground)]">1. 建議觀察/進場基準價</div>
+          <div class="text-lg font-bold mt-0.5">${s.close} 元 <span class="text-xs font-normal text-[var(--muted-foreground)]">(可買約 ${shares.toLocaleString()} 股)</span></div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">ATR(14) 每日平均真實波動：±${s.atr14} 元</div>
+        </div>
+        <div class="p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+          <div class="text-xs font-semibold text-emerald-500">2. 鐵律停損價 (跌破無條件出場)</div>
+          <div class="text-lg font-bold text-emerald-500 mt-0.5">${s.stop_loss} 元 (${s.stop_pct}%)</div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">萬一看錯最多賠：<strong>NT$ ${maxLossNTD.toLocaleString()}</strong>（絕不凹單）</div>
+        </div>
+        <div class="p-3.5 rounded-lg border border-red-500/30 bg-red-500/10">
+          <div class="text-xs font-semibold text-red-500">3. 第一波段目標價 (風報比 1 : 2.2)</div>
+          <div class="text-lg font-bold text-red-500 mt-0.5">${s.target_2r} 元 (+${s.target_pct}%)</div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">達標預估獲利：<strong>+NT$ ${targetGainNTD.toLocaleString()}</strong>（未破20MA續抱）</div>
+        </div>
+      `;
+
+      drawStockChart();
+    }
+
+    function drawStockChart(hoverIndex = -1) {
+      const canvas = document.getElementById('stockCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const isLight = document.documentElement.classList.contains('light');
+      const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.08)';
+      const textColor = isLight ? '#64748b' : '#94a3b8';
+
+      const bars = selectedStock.b; // [d, o, h, l, c, v, ma20, ma60, bb_up, bb_dn, vma20]
+      const n = bars.length;
+      const padL = 58, padR = 54, padT = 18, padB = 26;
+      const priceH = 210;
+      const volTop = padT + priceH + 18;
+      const volH = H - volTop - padB;
+      const plotW = W - padL - padR;
+
+      const showMA20 = document.getElementById('chkMA20').checked;
+      const showMA60 = document.getElementById('chkMA60').checked;
+      const showBB = document.getElementById('chkBB').checked;
+      const showStop = document.getElementById('chkStop').checked;
+
+      // Min/Max price
+      let minP = Infinity, maxP = -Infinity, maxV = 1;
+      bars.forEach(b => {
+        minP = Math.min(minP, b[3], showBB ? b[9] : b[3], showMA60 ? b[7] : b[3]);
+        maxP = Math.max(maxP, b[2], showBB ? b[8] : b[2], showMA60 ? b[7] : b[2]);
+        maxV = Math.max(maxV, b[5], b[10]);
+      });
+      if (showStop && selectedStock.cat !== 'downtrend') {
+        minP = Math.min(minP, selectedStock.stop_loss * 0.99);
+        maxP = Math.max(maxP, selectedStock.target_2r * 1.01);
+      }
+      const rangeP = Math.max(1, (maxP - minP) * 1.08);
+      minP -= rangeP * 0.04;
+      maxP += rangeP * 0.04;
+
+      const xOf = i => padL + (i + 0.5) * (plotW / n);
+      const yOfP = p => padT + priceH - ((p - minP) / (maxP - minP)) * priceH;
+      const yOfV = v => volTop + volH - (v / (maxV * 1.1)) * volH;
+
+      // Price horizontal grid lines
+      ctx.strokeStyle = gridColor;
+      ctx.fillStyle = textColor;
+      ctx.font = '12px sans-serif';
+      ctx.lineWidth = 1;
+      for (let g = 0; g <= 4; g++) {
+        const py = padT + (priceH / 4) * g;
+        const pVal = maxP - ((maxP - minP) / 4) * g;
+        ctx.beginPath();
+        ctx.moveTo(padL, py);
+        ctx.lineTo(W - padR, py);
+        ctx.stroke();
+        ctx.fillText(pVal.toFixed(pVal >= 500 ? 0 : 1), 6, py + 4);
+      }
+
+      // Divider between Price and Volume
+      ctx.beginPath();
+      ctx.moveTo(padL, volTop - 8);
+      ctx.lineTo(W - padR, volTop - 8);
+      ctx.stroke();
+      ctx.fillText('成交量(張)', 4, volTop + 12);
+
+      // Bollinger Band Shaded Area
+      if (showBB) {
+        ctx.fillStyle = isLight ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.12)';
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[8]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        for (let i = n - 1; i >= 0; i--) {
+          ctx.lineTo(xOf(i), yOfP(bars[i][9]));
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(168,85,247,0.45)';
+        ctx.setLineDash([3, 3]);
+        [8, 9].forEach(idx => {
+          ctx.beginPath();
+          bars.forEach((b, i) => {
+            const x = xOf(i), y = yOfP(b[idx]);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+      }
+
+      // Stop loss & Target horizontal lines
+      if (showStop && selectedStock.cat !== 'downtrend') {
+        const yStop = yOfP(selectedStock.stop_loss);
+        ctx.strokeStyle = '#10b981';
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padL, yStop);
+        ctx.lineTo(W - padR, yStop);
+        ctx.stroke();
+        ctx.fillStyle = '#10b981';
+        ctx.fillText(`停損 ${selectedStock.stop_loss}`, W - padR + 3, yStop + 4);
+
+        const yTarget = yOfP(selectedStock.target_2r);
+        ctx.strokeStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(padL, yTarget);
+        ctx.lineTo(W - padR, yTarget);
+        ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText(`目標 ${selectedStock.target_2r}`, W - padR + 3, yTarget + 4);
+        ctx.setLineDash([]);
+      }
+
+      //Candlesticks & Volume bars (Taiwan style: Red = Close >= Open, Green = Close < Open)
+      const barW = Math.max(4, (plotW / n) * 0.62);
+      bars.forEach((b, i) => {
+        const [d, o, h, l, c, v] = b;
+        const x = xOf(i);
+        const isUp = c >= o;
+        const color = isUp ? '#ef4444' : '#10b981';
+
+        // Wick
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, yOfP(h));
+        ctx.lineTo(x, yOfP(l));
+        ctx.stroke();
+
+        // Body
+        const yOpen = yOfP(o);
+        const yClose = yOfP(c);
+        const topY = Math.min(yOpen, yClose);
+        const bodyH = Math.max(2, Math.abs(yClose - yOpen));
+        ctx.fillStyle = color;
+        ctx.fillRect(x - barW / 2, topY, barW, bodyH);
+
+        // Volume bar
+        const vy = yOfV(v);
+        ctx.fillStyle = isUp ? 'rgba(239,68,68,0.75)' : 'rgba(16,185,129,0.75)';
+        ctx.fillRect(x - barW / 2, vy, barW, volTop + volH - vy);
+
+        // Date labels every 9 bars
+        if (i % 9 === 0 || i === n - 1) {
+          ctx.fillStyle = textColor;
+          ctx.fillText(d, x - 14, H - 6);
+        }
+      });
+
+      // Volume MA20 line
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      bars.forEach((b, i) => {
+        const x = xOf(i), y = yOfV(b[10]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // MA60 Line
+      if (showMA60) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[7]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // MA20 Line
+      if (showMA20) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[6]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // Hover crosshair
+      if (hoverIndex >= 0 && hoverIndex < n) {
+        const hx = xOf(hoverIndex);
+        ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.45)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hx, padT);
+        ctx.lineTo(hx, volTop + volH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const hb = bars[hoverIndex];
+        const info = document.getElementById('chartHoverInfo');
+        info.innerHTML = `📅 <strong>${hb[0]}</strong>｜開 <strong>${hb[1]}</strong> 高 <strong>${hb[2]}</strong> 低 <strong>${hb[3]}</strong> 收 <strong>${hb[4]}</strong>｜量 <strong>${hb[5].toLocaleString()}張</strong> (均量 ${hb[10].toLocaleString()}張)｜20MA: <strong>${hb[6]}</strong>｜60MA: <strong>${hb[7]}</strong>`;
+      }
+    }
+
+    // Attach mousemove on stockCanvas
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('stockCanvas');
+      canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const padL = 58, padR = 54;
+        const plotW = canvas.width - padL - padR;
+        const n = selectedStock.b.length;
+        const idx = Math.floor(((mx - padL) / plotW) * n);
+        if (idx >= 0 && idx < n) drawStockChart(idx);
+      });
+      canvas.addEventListener('mouseleave', () => {
+        drawStockChart(-1);
+      });
+      function handleTouch(e) {
+        if (!e.touches || !e.touches.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const mx = (e.touches[0].clientX - rect.left) * scaleX;
+        const padL = 58, padR = 54;
+        const plotW = canvas.width - padL - padR;
+        const n = selectedStock.b.length;
+        const idx = Math.floor(((mx - padL) / plotW) * n);
+        if (idx >= 0 && idx < n) drawStockChart(idx);
+      }
+      canvas.addEventListener('touchstart', handleTouch, { passive: true });
+      canvas.addEventListener('touchmove', handleTouch, { passive: true });
+      renderStockList();
+    });
+
+    // ==================== TAB 2: INTERACTIVE LESSONS ====================
+    const LESSONS = [
+      {
+        title: '第 1 課：真起漲 vs. 假突破（為什麼散戶一買就套？）',
+        caption: '左半部為「底部量縮橫盤後，第一根帶 2 倍量突破頸線（真起漲）」；右半部為「已經大漲一段後，爆出天量卻收長上影線（主力出貨假突破）」。',
+        points: [
+          { tag: '✅ 真起漲特徵', text: '突破前至少橫盤整理 10~20 天，成交量像死水一樣萎縮；突破頸線當天收「實體長紅K」且成交量達到 20日均量的 1.5~2.5 倍。' },
+          { tag: '❌ 假突破陷阱', text: '股價已經連漲好幾天、離 20MA 很遠，利多新聞見報當天開高走低收「爆天量長上影線」或「無量虛漲」，散戶衝進去剛好幫主力洗碗。' },
+          { tag: '🎯 實戰口訣', text: '「底部爆量長紅是起漲，高檔爆量收黑是逃命。」買進前先看它在起漲前有沒有經過安靜的底部整理！' }
+        ]
+      },
+      {
+        title: '第 2 課：一條線定生死 — 20MA（月線）與正乖離法則',
+        caption: '黃線為 20MA 月線（波段生命線）。買點 A 為「月線走平翻揚、股價剛帶量站上」；買點 B 為「上漲後首次量縮回測 20MA 不破」；紅叉 C 為「正乖離 >12% 追高區」。',
+        points: [
+          { tag: '💡 為什麼看 20MA？', text: '一個月大約有 20 個交易日，20MA 代表「過去一個月買進這檔股票所有人的平均成本」。站上 20MA 代表近一個月買的人全數賺錢，沒有解套賣壓！' },
+          { tag: '📏 正乖離率安全法則', text: '乖離率 = (現價 - 20MA) ÷ 20MA。當正乖離在 0% ~ +8% 內屬於安全的起漲初升段；超過 +12%~+15% 代表短線漲太急，隨時會拉回修正。' },
+          { tag: '🛑 鐵律停損線', text: '只要收盤價正式跌破 20MA 且隔日無法站回，無論賺賠先出場觀望，絕對不會發生「小賠變腰斬」的悲劇。' }
+        ]
+      },
+      {
+        title: '第 3 課：VCP 波動率收斂（看懂主力偷偷吃貨的痕跡）',
+        caption: '紫色通道為布林通道 (Bollinger Bands)。注意起漲前波動從 -18% → -9% → -4% 越來越窄（VCP 收斂），最後帶量突破上軌展開主升段！',
+        points: [
+          { tag: '🔍 什麼是 VCP 收斂？', text: '美國傳奇交易冠軍 Mark Minervini 提出的型態：主力在底部吸籌時，不希望把股價拉高增加成本，所以股價震盪幅度會一波比一波小，布林帶寬壓縮到極致。' },
+          { tag: '⏳ 如何在起漲前卡位？', text: '切到我們的「⏳ 底部收斂・蓄勢待發」分類（如台積電、富邦金、國泰金），先把布林帶寬 < 12% 的股票放進自選名單，設好突破價警示。' },
+          { tag: '🚀 出手時機', text: '不用在盤整時進去浪費時間等，等到某天成交量突然放大 > 1.5 倍且紅 K 突破盤整區上緣的那一刻，精準出手！' }
+        ]
+      },
+      {
+        title: '第 4 課：解決「賺小賠大」— 2×ATR 停損與波段抱單法',
+        caption: '進場後設定「現價 - 2×ATR」或「20MA 下方 1.5%」為綠色停損底線；只要紅K沿著 20MA 往上走，就算中間有小綠K洗盤也絕不提早下車！',
+        points: [
+          { tag: '💔 散戶賠錢真相', text: '90% 散戶不是看錯方向，而是「對的時候賺 5% 就怕回吐跑掉，錯的時候跌 25% 還在問要不要攤平」，做對 4 次不夠賠 1 次大虧！' },
+          { tag: '🛡️ 什麼是 ATR 停損？', text: 'ATR（真實波動幅度均值）衡量一檔股票每天正常洗盤的震盪大小。把停損設在 1.8~2 倍 ATR 外，既不會被日常小震盪洗掉，又能把單筆虧損鎖死在 -5%~-7%。' },
+          { tag: '🏆 抱住主升段的秘訣', text: '進場後把眼光從「今天賺幾塊」移開，改成「收盤有沒有跌破 20MA？」。只要沒跌破 20MA，就讓獲利自己奔跑！' }
+        ]
+      }
+    ];
+
+    function selectLesson(idx) {
+      currentLesson = idx;
+      document.querySelectorAll('#lessonButtons .lesson-btn').forEach((btn, i) => {
+        btn.classList.toggle('filter-active', i === idx);
+      });
+      const les = LESSONS[idx];
+      document.getElementById('lessonChartTitle').textContent = les.title;
+      document.getElementById('lessonChartCaption').textContent = les.caption;
+      document.getElementById('lessonContentBox').innerHTML = les.points.map(p => `
+        <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--background)] space-y-1">
+          <div class="font-bold text-sm">${p.tag}</div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">${p.text}</p>
+        </div>
+      `).join('');
+      drawLessonCanvas(idx);
+    }
+
+    function drawLessonCanvas(idx) {
+      const canvas = document.getElementById('lessonCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+      ctx.fillStyle = isLight ? '#334155' : '#cbd5e1';
+      ctx.font = '12px sans-serif';
+
+      for (let g = 1; g <= 4; g++) {
+        ctx.beginPath();
+        ctx.moveTo(20, (H / 5) * g);
+        ctx.lineTo(W - 20, (H / 5) * g);
+        ctx.stroke();
+      }
+
+      if (idx === 0) {
+        // Lesson 0: True breakout vs False breakout
+        ctx.strokeStyle = '#f59e0b';
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(30, 150); ctx.lineTo(310, 150); ctx.stroke();
+        ctx.fillText('底部盤整頸線壓力', 40, 142);
+
+        const leftCandles = [
+          [50, 175, 168, 20], [80, 170, 176, 18], [110, 174, 169, 15],
+          [140, 171, 166, 14], [170, 166, 162, 16], [200, 163, 125, 68],
+          [230, 126, 105, 52], [260, 108, 85, 48]
+        ];
+        leftCandles.forEach(([x, o, c, v]) => {
+          const up = c <= o;
+          ctx.fillStyle = up ? '#ef4444' : '#10b981';
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.beginPath(); ctx.moveTo(x, Math.min(o, c) - 8); ctx.lineTo(x, Math.max(o, c) + 8); ctx.stroke();
+          ctx.fillRect(x - 7, Math.min(o, c), 14, Math.max(4, Math.abs(c - o)));
+          ctx.fillRect(x - 7, H - 20 - v, 14, v);
+        });
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('🎯 真起漲點 (帶2倍量長紅突破頸線)', 140, 70);
+
+        // Right half: False breakout at high
+        const rightCandles = [
+          [390, 160, 130, 35], [425, 130, 95, 42], [460, 95, 72, 48],
+          [495, 70, 88, 85], [530, 90, 130, 50], [565, 130, 165, 40]
+        ];
+        rightCandles.forEach(([x, o, c, v], i) => {
+          const up = c <= o;
+          ctx.fillStyle = up ? '#ef4444' : '#10b981';
+          ctx.strokeStyle = ctx.fillStyle;
+          const topWick = i === 3 ? 28 : Math.min(o, c) - 8;
+          ctx.beginPath(); ctx.moveTo(x, topWick); ctx.lineTo(x, Math.max(o, c) + 8); ctx.stroke();
+          ctx.fillRect(x - 7, Math.min(o, c), 14, Math.max(4, Math.abs(c - o)));
+          ctx.fillRect(x - 7, H - 20 - v, 14, v);
+        });
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('⚠️ 高檔爆天量長上影線 (主力出貨假突破)', 415, 22);
+      } else if (idx === 1) {
+        // Lesson 1: 20MA Lifeline & Bias
+        const maPts = [[40,220],[120,215],[200,195],[280,165],[360,145],[440,125],[520,115],[600,130]];
+        const pricePts = [[40,240],[120,225],[200,175],[280,105],[360,140],[440,95],[520,135],[600,185]];
+
+        ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3;
+        ctx.beginPath(); maPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+        ctx.fillStyle = '#f59e0b'; ctx.fillText('20MA 月線 (生命線)', 510, 105);
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+        ctx.beginPath(); pricePts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('✅ 買點A：剛帶量站上20MA (乖離+3%)', 145, 165);
+        ctx.fillText('✅ 買點B：回測20MA不破再轉強', 310, 162);
+        ctx.fillStyle = '#f97316';
+        ctx.fillText('❌ 追高陷阱：正乖離 >15% 短線急拉', 210, 88);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('🛑 停損出場：正式跌破20MA且月線下彎', 440, 205);
+      } else if (idx === 2) {
+        // Lesson 2: VCP Squeeze
+        const vcpPts = [[40,80],[90,220],[140,100],[190,190],[240,120],[290,165],[340,132],[390,150],[440,138],[490,95],[550,60],[610,40]];
+        ctx.strokeStyle = '#a855f7'; ctx.setLineDash([4,4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(40,75); ctx.lineTo(440,132); ctx.lineTo(610,35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(40,225); ctx.lineTo(440,155); ctx.lineTo(610,130); ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); vcpPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.fillStyle = isLight ? '#334155' : '#e2e8f0';
+        ctx.fillText('第1波震盪 (-18%)', 60, 242);
+        ctx.fillText('第2波收斂 (-9%)', 175, 210);
+        ctx.fillText('第3波極度壓縮 (-3%)', 320, 175);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('🚀 帶量突破收斂末端 (最佳起漲買點!)', 430, 80);
+      } else {
+        // Lesson 3: 2x ATR Stop & Trend Riding
+        const ridePts = [[60,210],[130,175],[200,188],[270,145],[340,158],[410,110],[480,122],[550,75],[620,60]];
+        const stopPts = [[60,245],[130,215],[200,215],[270,180],[340,180],[410,145],[480,145],[550,108],[620,95]];
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ridePts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.strokeStyle = '#10b981'; ctx.setLineDash([5,4]); ctx.lineWidth = 2;
+        ctx.beginPath(); stopPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('📈 股價沿 20MA 階梯式創高 (中間小回檔不破停損線就抱牢!)', 160, 55);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('🛡️ 2×ATR 移動停損保護線 (隨波段墊高，鎖住獲利)', 260, 205);
+      }
+    }
+
+    function updateExpectancySim() {
+      const wr = parseInt(document.getElementById('simWinRate').value, 10);
+      const win = parseInt(document.getElementById('simAvgWin').value, 10);
+      const loss = parseInt(document.getElementById('simAvgLoss').value, 10);
+
+      document.getElementById('simWinRateVal').textContent = wr + '%';
+      document.getElementById('simAvgWinVal').textContent = '+' + win + '%';
+      document.getElementById('simAvgLossVal').textContent = '-' + loss + '%';
+
+      const exp = (wr / 100) * win - ((100 - wr) / 100) * loss;
+      const rr = (win / loss).toFixed(2);
+      const banner = document.getElementById('simResultBanner');
+
+      if (exp > 0) {
+        banner.className = 'p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-sm flex flex-col md:flex-row md:items-center justify-between gap-3';
+        banner.innerHTML = `
+          <div>
+            <strong class="text-red-500 text-base">✅ 正期望值系統：每交易 10 次，平均複合期望報酬 +${(exp * 10).toFixed(1)}%</strong>
+            <p class="text-xs text-[var(--muted-foreground)] mt-0.5">風報比 (賺賠比) = <strong>1 : ${rr}</strong>｜單筆期望值 = <strong>+${exp.toFixed(2)}%</strong>。只要嚴守 -${loss}% 停損並抱住 +${win}% 波段，長期必然穩定獲利！</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white self-start md:self-center">長期穩健獲利</span>
+        `;
+      } else {
+        banner.className = 'p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm flex flex-col md:flex-row md:items-center justify-between gap-3';
+        banner.innerHTML = `
+          <div>
+            <strong class="text-emerald-500 text-base">⚠️ 負期望值陷阱：每交易 10 次，平均期望虧損 ${(exp * 10).toFixed(1)}%</strong>
+            <p class="text-xs text-[var(--muted-foreground)] mt-0.5">風報比 = <strong>1 : ${rr}</strong>｜單筆期望值 = <strong>${exp.toFixed(2)}%</strong>。這就是散戶「賺小賠大」虧錢的主因：就算勝率 ${wr}%，只要看錯不設停損，長期一定賠錢！</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white self-start md:self-center">賺小賠大・長期虧損</span>
+        `;
+      }
+    }
+
+    // ==================== TAB 3: DIY STOCK CHECKER ====================
+    function runDiyCheck() {
+      const name = document.getElementById('diyName').value || '自選股';
+      const p = parseFloat(document.getElementById('diyPrice').value) || 100;
+      const ma20 = parseFloat(document.getElementById('diyMA20').value) || 100;
+      const ma60 = parseFloat(document.getElementById('diyMA60').value) || 100;
+      const vol = parseFloat(document.getElementById('diyVol').value) || 1000;
+      const vma20 = parseFloat(document.getElementById('diyVMA20').value) || 1000;
+
+      const bias20 = ((p / ma20 - 1) * 100).toFixed(2);
+      const volR = (vol / Math.max(1, vma20)).toFixed(2);
+      const stopPrice = (ma20 * 0.98).toFixed(1);
+      const stopPct = (((stopPrice / p) - 1) * 100).toFixed(2);
+      const targetPrice = (p + (p - stopPrice) * 2.2).toFixed(1);
+
+      let verdict = '', boxCls = '';
+      if (p >= ma20 && bias20 <= 8.5 && volR >= 1.3 && ma20 >= ma60 * 0.98) {
+        verdict = `🔥 【標準起漲波訊號】${name} 目前站穩 20MA 生命線（正乖離 +${bias20}% 尚在安全範圍），且成交量放大至 20日均量的 ${volR} 倍，屬於帶量突破結構！`;
+        boxCls = 'border-red-500/40 bg-red-500/10';
+      } else if (p >= ma20 && bias20 > 10.0) {
+        verdict = `⚠️ 【短線正乖離過大・勿追高】${name} 雖然在 20MA 之上，但正乖離已達 +${bias20}%（超過 +10% 警戒區），現在追買風險高，建議等量縮拉回 5MA/10MA 再看。`;
+        boxCls = 'border-amber-500/40 bg-amber-500/10';
+      } else if (p >= ma20 * 0.985 && volR < 1.3) {
+        verdict = `⏳ 【底部量縮整理・等待補量】${name} 目前緊貼 20MA（乖離 ${bias20}%），但今日量比僅 ${volR} 倍（未達 1.3~1.5 倍攻擊量），建議先放自選股，等帶量長紅出現再出手。`;
+        boxCls = 'border-blue-500/40 bg-blue-500/10';
+      } else {
+        verdict = `❄️ 【跌破 20MA 生命線・空頭觀望】${name} 目前股價低於 20MA 月線（乖離 ${bias20}%），上方皆為套牢賣壓，切勿因為覺得便宜去摸底接刀！`;
+        boxCls = 'border-emerald-500/40 bg-emerald-500/10';
+      }
+
+      const box = document.getElementById('diyResultBox');
+      box.className = `p-4 rounded-xl border text-sm space-y-2 ${boxCls}`;
+      box.innerHTML = `
+        <div class="font-bold text-base">${verdict}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-xs">
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>20MA 乖離率：</strong> ${bias20 > 0 ? '+' : ''}${bias20}% （安全起漲區為 0% ~ +8%）
+          </div>
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>成交量爆發比：</strong> ${volR} 倍 （真突破需 ≥ 1.3 ~ 1.5 倍均量）
+          </div>
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>防守停損價：</strong> 跌破 ${stopPrice} 元 (${stopPct}%) 無條件停損｜波段目標：${targetPrice} 元
+          </div>
+        </div>
+      `;
+    }
+  
+    function toggleTheme() {
+      document.documentElement.classList.toggle('light');
+      drawStockChart();
+      if (!document.getElementById('tab-academy').classList.contains('hidden')) {
+        drawLessonCanvas(currentLesson);
+      }
+    }
+
+  </script>
+</body>
+</html>

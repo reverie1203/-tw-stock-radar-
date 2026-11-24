@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="台股起漲雷達" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🇹🇼 台股起漲波傻瓜篩選器 & 趨勢教學儀表板</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <style>
+
+    :root {
+      --background: #0f172a;
+      --card: #1e293b;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --border: #334155;
+      --primary: #ef4444;
+      --primary-foreground: #ffffff;
+      --secondary: #334155;
+      --secondary-foreground: #f8fafc;
+    }
+    html.light {
+      --background: #f8fafc;
+      --card: #ffffff;
+      --foreground: #0f172a;
+      --muted-foreground: #64748b;
+      --border: #e2e8f0;
+      --primary: #dc2626;
+      --primary-foreground: #ffffff;
+      --secondary: #f1f5f9;
+      --secondary-foreground: #0f172a;
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .tab-active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-weight: 600;
+    }
+    .filter-active {
+      border-color: var(--primary);
+      background: var(--secondary);
+      font-weight: 600;
+    }
+    .stock-row-active {
+      border-left: 4px solid #ef4444;
+      background: var(--secondary);
+    }
+  </style>
+  <link rel="manifest" href="./manifest.json" />
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-4 md:p-6">
+  <div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- CLOUD_TOOLBAR_START -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex flex-wrap items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded-full font-bold bg-red-500/15 text-red-500 border border-red-500/30">☁️ 雲端每日自動掃描版</span>
+        <span class="text-[var(--muted-foreground)]">最後自動更新：<strong>__UPDATED_AT_TPE__</strong>（每交易日 14:40 & 17:15 自動重掃全台股）</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="toggleTheme()" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-semibold hover:bg-[var(--secondary)] transition">
+          🌓 深色 / 淺色
+        </button>
+      </div>
+    </div>
+    <!-- CLOUD_TOOLBAR_END -->
+    <!-- Header Banner -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-500 border border-red-500/30">台股專用・紅漲綠跌</span>
+          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--secondary)] text-[var(--muted-foreground)]">全台股 1,973 檔掃描 (截至 2026-11-20)</span>
+        </div>
+        <h1 class="text-xl md:text-2xl font-bold mt-2">🇹🇼 全台股「起漲波」傻瓜雷達 & 趨勢判斷教學軟體</h1>
+        <p class="text-sm text-[var(--muted-foreground)] mt-1">
+          不看複雜財報術語！用 4 個白話數據抓出「底部壓縮 ＋ 帶量站上 20MA 月線」的起漲第一波，並自動幫你算好停損價。
+        </p>
+      </div>
+      <!-- Main Navigation Tabs -->
+      <div class="flex flex-wrap gap-2 bg-[var(--background)] p-1.5 rounded-xl border border-[var(--border)] self-start">
+        <button id="tabBtn-screener" onclick="switchTab('screener')" class="px-3.5 py-2 rounded-lg text-sm transition tab-active">
+          🎯 傻瓜起漲篩選器
+        </button>
+        <button id="tabBtn-academy" onclick="switchTab('academy')" class="px-3.5 py-2 rounded-lg text-sm transition text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+          🎓 趨勢判斷實戰教學 (4堂課)
+        </button>
+        <button id="tabBtn-diy" onclick="switchTab('diy')" class="px-3.5 py-2 rounded-lg text-sm transition text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+          🛠️ 自選股體檢 & DIY 指南
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 1: SCREENER ==================== -->
+    <div id="tab-screener" class="space-y-4">
+      __FULL_MARKET_BANNER__
+      <!-- Filter Bar -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex flex-wrap gap-2" id="categoryFilters">
+            <button onclick="setFilter('all')" data-filter="all" class="filter-btn filter-active px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              全市場精選 (29)
+            </button>
+            <button onclick="setFilter('breakout')" data-filter="breakout" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              🔥 剛起漲・帶量突破 (4)
+            </button>
+            <button onclick="setFilter('squeeze')" data-filter="squeeze" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ⏳ 底部收斂・蓄勢待發 (14)
+            </button>
+            <button onclick="setFilter('overextended')" data-filter="overextended" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ⚠️ 強勢但乖離過大・勿追高 (3)
+            </button>
+            <button onclick="setFilter('downtrend')" data-filter="downtrend" class="filter-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              ❄️ 跌破生命線・空頭觀望 (7)
+            </button>
+          </div>
+          <div class="text-xs text-[var(--muted-foreground)]">
+            💡 點擊左側任一檔股票，右側立即展開「背後支持數據」與「互動K線圖」
+          </div>
+        </div>
+      </div>
+
+      <!-- Master-Detail Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        <!-- Left Column: Simple Stock List (5 cols) -->
+        <div class="lg:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden shadow-sm">
+          <div class="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--secondary)]">
+            <span class="font-semibold text-sm">台股篩選清單（點擊查看背後數據）</span>
+            <span class="text-xs text-[var(--muted-foreground)]" id="listCountLabel">共 18 檔</span>
+          </div>
+          <div id="stockListContainer" class="divide-y divide-[var(--border)] max-h-[720px] overflow-y-auto custom-scroll">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Right Column: Supporting Data Drill-down Panel (7 cols) -->
+        <div class="lg:col-span-7 space-y-4" id="detailPanel">
+          <div class="lg:hidden flex justify-between items-center">
+            <button type="button" onclick="document.getElementById('stockListContainer').scrollIntoView({behavior:'smooth'})" class="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--card)] text-xs font-semibold">
+              ⬆️ 回到股票清單
+            </button>
+            <span class="text-xs text-[var(--muted-foreground)]">👆 可用手指在 K 線圖上滑動查價</span>
+          </div>
+          <!-- Stock Summary Header & Plain-Language Diagnosis -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span id="detCodeName" class="text-xl font-bold">2454 聯發科</span>
+                  <span id="detSector" class="px-2 py-0.5 text-xs rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">IC設計</span>
+                  <span id="detCatBadge" class="px-2.5 py-0.5 text-xs font-semibold rounded-full">🔥 剛起漲・帶量突破</span>
+                </div>
+                <p id="detDateLabel" class="text-xs text-[var(--muted-foreground)] mt-1">資料日期：2026-11-13 收盤</p>
+              </div>
+              <div class="text-right">
+                <div class="flex items-baseline justify-end gap-2">
+                  <span id="detPrice" class="text-2xl font-bold">4120.0</span>
+                  <span id="detChg" class="text-sm font-semibold">+270.0 (+7.01%)</span>
+                </div>
+                <div class="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  起漲結構評分：<strong id="detScore" class="text-sm text-[var(--foreground)]">88 / 100</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Plain-Language Diagnosis Box -->
+            <div id="detDiagnosisBox" class="p-3.5 rounded-lg border text-sm leading-relaxed">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Interactive Candlestick + MA + Bollinger + Volume Chart -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-semibold text-sm">📈 近 45 交易日 K 線・均線生命線・成交量結構圖</h3>
+                <p id="chartHoverInfo" class="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  滑鼠移至圖表上可檢視當日「開高低收、成交量(張)、20MA月線、60MA季線」
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 text-xs">
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkMA20" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>20MA(月線)
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkMA60" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>60MA(季線)
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkBB" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-purple-400"></span>布林收斂通道
+                </label>
+                <label class="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkStop" checked onchange="drawStockChart()" />
+                  <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>停損/目標線
+                </label>
+              </div>
+            </div>
+            <div class="relative w-full">
+              <canvas id="stockCanvas" width="720" height="340" class="w-full h-[320px] rounded-lg border border-[var(--border)] cursor-crosshair"></canvas>
+            </div>
+          </div>
+
+          <!-- 4 Supporting Data Cards (Why this stock is or isn't breaking out) -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-base">🔍 點開看背後支持數據（四大起漲條件白話健檢）</h3>
+              <span class="text-xs text-[var(--muted-foreground)]">不靠感覺，每項數據都有明確合格門檻</span>
+            </div>
+            <div id="supportCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Anti-Loss Discipline Calculator (2x ATR Trailing Stop & Risk/Reward) -->
+          <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-semibold text-base">🛡️ 防賠錢紀律計算機（解決「賺小賠大」的關鍵）</h3>
+                <p class="text-xs text-[var(--muted-foreground)]">根據該股近14日真實波動度 (ATR) 與 20MA 生命線，自動算好進場後的停損價與波段目標價</p>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span>預計投入本金(NT$)：</span>
+                <input id="capitalInput" type="number" value="200000" step="10000" onchange="renderDetail()" class="w-28 px-2.5 py-1 rounded border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] text-xs font-semibold" />
+              </div>
+            </div>
+            <div id="riskCalcGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 2: INTERACTIVE TREND ACADEMY ==================== -->
+    <div id="tab-academy" class="hidden space-y-5">
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-bold">🎓 台股趨勢判斷實戰教學（點擊切換 4 大核心圖解課）</h2>
+            <p class="text-sm text-[var(--muted-foreground)]">
+              為什麼散戶總是「一買就套、一賣就飆」？這 4 堂互動圖解課幫你建立正確的「起漲波」視覺直覺。
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2" id="lessonButtons">
+            <button onclick="selectLesson(0)" class="lesson-btn filter-active px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第1課：真起漲 vs 假突破
+            </button>
+            <button onclick="selectLesson(1)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第2課：20MA生命線與乖離率
+            </button>
+            <button onclick="selectLesson(2)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第3課：VCP底部波動收斂
+            </button>
+            <button onclick="selectLesson(3)" class="lesson-btn px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] transition">
+              第4課：停損紀律與期望值模擬
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start pt-2">
+          <!-- Interactive Diagram Canvas (7 cols) -->
+          <div class="lg:col-span-7 bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 id="lessonChartTitle" class="font-semibold text-sm">圖解示範：底部帶量真突破 vs 高檔爆量假突破</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--muted-foreground)]">紅K＝上漲｜綠K＝下跌</span>
+            </div>
+            <canvas id="lessonCanvas" width="680" height="320" class="w-full h-[300px] rounded-lg border border-[var(--border)]"></canvas>
+            <p id="lessonChartCaption" class="text-xs text-[var(--muted-foreground)] leading-relaxed"></p>
+          </div>
+
+          <!-- Lesson Text & Trap Comparison (5 cols) -->
+          <div class="lg:col-span-5 space-y-3" id="lessonContentBox">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Expectancy Simulator (Why cutting losses makes you profitable) -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <h3 class="font-bold text-base">🧮 互動實驗室：為什麼「不設停損」就算勝率 70% 也會賠光？（親手拉動滑桿試算）</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>選股勝率 (Win Rate)</span>
+              <strong id="simWinRateVal">50%</strong>
+            </div>
+            <input id="simWinRate" type="range" min="30" max="80" step="5" value="50" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">職業操盤手的突破策略勝率通常也只有 45%~55%！</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>看對時平均獲利 (%)</span>
+              <strong id="simAvgWinVal" class="text-red-500">+16%</strong>
+            </div>
+            <input id="simAvgWin" type="range" min="3" max="35" step="1" value="16" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">散戶常賺 4% 就跑；贏家沿 20MA 抱波段賺 15%~25%。</p>
+          </div>
+          <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-2">
+            <div class="flex justify-between text-xs">
+              <span>看錯時停損幅度 (%)</span>
+              <strong id="simAvgLossVal" class="text-emerald-500">-6%</strong>
+            </div>
+            <input id="simAvgLoss" type="range" min="3" max="30" step="1" value="6" oninput="updateExpectancySim()" class="w-full" />
+            <p class="text-xs text-[var(--muted-foreground)]">散戶凹單常賠 -25%；贏家跌破 20MA 在 -5%~-7% 砍單。</p>
+          </div>
+        </div>
+        <div id="simResultBanner" class="p-4 rounded-xl border text-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TAB 3: DIY CHECKER & FREE TOOLS GUIDE ==================== -->
+    <div id="tab-diy" class="hidden space-y-5">
+      <!-- Instant Custom Stock Checker -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-4">
+        <div>
+          <h2 class="text-lg font-bold">🩺 台股自選股「起漲波」5 秒快篩計算機</h2>
+          <p class="text-sm text-[var(--muted-foreground)]">
+            打開你的手機看盤軟體（三竹股市 / Yahoo股市），輸入你想買的那檔台股目前 5 個數字，立即幫你判斷「能不能買、停損設哪裡」！
+          </p>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">股票代號/名稱</label>
+            <input id="diyName" type="text" value="2330 台積電" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">目前股價 (元)</label>
+            <input id="diyPrice" type="number" step="0.5" value="2350" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">20MA 月線價 (元)</label>
+            <input id="diyMA20" type="number" step="0.5" value="2310" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">60MA 季線價 (元)</label>
+            <input id="diyMA60" type="number" step="0.5" value="2240" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">今日成交量 (張)</label>
+            <input id="diyVol" type="number" value="42000" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs text-[var(--muted-foreground)] mb-1">20日均量 (張)</label>
+            <input id="diyVMA20" type="number" value="25000" class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm" />
+          </div>
+        </div>
+        <button onclick="runDiyCheck()" class="px-4 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-semibold hover:opacity-90 transition">
+          ⚡ 立即診斷這檔股票是不是「真起漲波」
+        </button>
+        <div id="diyResultBox" class="p-4 rounded-xl border border-[var(--border)] bg-[var(--background)] text-sm space-y-2">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Free Taiwan Stock Tools & Google Sheets Template -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+          <h3 class="font-bold text-base">🌐 台灣現成免費「抓起漲」網站推薦（免寫程式）</h3>
+          <ul class="space-y-2.5 text-sm">
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>1. 玩股網 (Wantgoo) / 嗨投資 (HiStock) 免費飆股搜尋</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                內建「均線糾結突破」、「爆量長紅」、「外資投信同買」勾選器，完全免費、介面最直覺，適合每天盤後花 3 分鐘勾選。
+              </p>
+            </li>
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>2. TradingView（免費版「股票篩選器」選台灣市場）</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                看 K 線與畫頸線最清楚的免費軟體！可在篩選器設定「價格穿越 20SMA」＋「相對成交量 > 1.5」，點開就能直接看漂亮圖表。
+              </p>
+            </li>
+            <li class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+              <strong>3. Goodinfo! 台灣股市資訊網 / 財報狗 (StatementDog)</strong>
+              <p class="text-xs text-[var(--muted-foreground)] mt-1">
+                Goodinfo 免費提供最細的籌碼與布林帶寬篩選；財報狗則適合點開檢查「月營收年增率是否剛轉正（基本面起漲）」。
+              </p>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm space-y-3">
+          <h3 class="font-bold text-base">📊 用 Google 試算表免費自製「台股起漲自動監控表」</h3>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            Google Sheets 內建免費的 <code>GOOGLEFINANCE</code> 函數，支援台股代號（格式：<code>TPE:2330</code>），打開 Google 試算表貼上以下公式即可自動更新：
+          </p>
+          <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] font-mono text-xs space-y-2 overflow-x-auto">
+            <div><span class="text-[var(--muted-foreground)]"># 1. 抓台積電目前現價：</span><br/>=GOOGLEFINANCE("TPE:2330", "price")</div>
+            <div><span class="text-[var(--muted-foreground)]"># 2. 抓今日成交量 vs 20日平均量：</span><br/>=GOOGLEFINANCE("TPE:2330", "volume")</div>
+            <div><span class="text-[var(--muted-foreground)]"># 3. 抓過去 60 天日 K 收盤價算 20MA 月線：</span><br/>=AVERAGE(INDEX(GOOGLEFINANCE("TPE:2330","close",TODAY()-35,TODAY()),0,2))</div>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+            💡 <strong>更簡單的方法</strong>：這份網頁已連結 GitHub Actions，每個交易日下午收盤後會<strong>自動掃描全台股 ~1,970+ 檔上市櫃股票</strong>並更新本網頁！用 iPhone Safari 打開後點「分享 ➔ 加入主畫面」即可隨時躺沙發看最新起漲波。
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Embedded Real Taiwan Stock Data (18 stocks, 45 trading days up to 2026-11-13)
+    const STOCKS_DATA = __STOCKS_JSON__;
+
+    let currentFilter = 'all';
+    let selectedStock = STOCKS_DATA[0];
+    let currentLesson = 0;
+
+    function switchTab(tab) {
+      ['screener', 'academy', 'diy'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+        const btn = document.getElementById('tabBtn-' + t);
+        if (t === tab) {
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-[var(--muted-foreground)]');
+        } else {
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-[var(--muted-foreground)]');
+        }
+      });
+      if (tab === 'screener') drawStockChart();
+      if (tab === 'academy') { selectLesson(currentLesson); updateExpectancySim(); }
+      if (tab === 'diy') runDiyCheck();
+    }
+
+    function setFilter(f) {
+      currentFilter = f;
+      document.querySelectorAll('#categoryFilters .filter-btn').forEach(btn => {
+        btn.classList.toggle('filter-active', btn.getAttribute('data-filter') === f);
+      });
+      renderStockList();
+    }
+
+    function getCatBadgeStyle(cat) {
+      if (cat === 'breakout') return 'bg-red-500/15 text-red-500 border border-red-500/30';
+      if (cat === 'squeeze') return 'bg-amber-500/15 text-amber-500 border border-amber-500/30';
+      if (cat === 'overextended') return 'bg-orange-500/15 text-orange-500 border border-orange-500/30';
+      if (cat === 'benchmark') return 'bg-blue-500/15 text-blue-500 border border-blue-500/30';
+      return 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30';
+    }
+
+    function getShortVerdict(s) {
+      if (s.cat === 'breakout') {
+        return `站上 20MA 生命線 (乖離 ${s.bias20 > 0 ? '+' : ''}${s.bias20}%)，近3日最大量比 ${s.vol_ratio_3d}x，領先大盤 +${s.rs_vs_0050}%`;
+      }
+      if (s.cat === 'squeeze') {
+        return `前期布林帶寬壓縮至 ${s.pre_bb_w}%，緊貼 20MA (${s.bias20 > 0 ? '+' : ''}${s.bias20}%)，等帶量 >1.5x 突破訊號`;
+      }
+      if (s.cat === 'overextended') {
+        return `短線急漲與 20MA 正乖離達 +${s.bias20}% (>12% 警戒區)，切勿追高，等拉回 5MA/10MA`;
+      }
+      if (s.cat === 'benchmark') {
+        return `台股大盤基準 ETF，目前位於 20MA 下方 (${s.bias20}%)，作為個股強弱對照基準`;
+      }
+      return `跌破 20MA 生命線 (${s.bias20}%) 且月線下彎 (${s.ma20_slope}%)，空頭排列切勿摸底接刀`;
+    }
+
+    function renderStockList() {
+      const container = document.getElementById('stockListContainer');
+      const filtered = STOCKS_DATA.filter(s => currentFilter === 'all' ? true : s.cat === currentFilter);
+      document.getElementById('listCountLabel').textContent = `共 ${filtered.length} 檔`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center space-y-2">
+          <div class="text-2xl">🛡️</div>
+          <div class="font-bold text-sm">目前沒有符合此條件的個股</div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">
+            當大盤劇烈回檔、市場沒有合格的起漲波標的時，<strong>「空手觀望、不亂接刀」</strong>就是保護本金最重要的一課！請點選「全部台股」檢視目前大盤與個股是否跌破 20MA 生命線。
+          </p>
+        </div>`;
+        return;
+      }
+      if (filtered.length > 0 && !filtered.find(s => s.code === selectedStock.code)) {
+        selectedStock = filtered[0];
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isSelected = s.code === selectedStock.code;
+        // Taiwan stock convention: Red = Up, Green = Down
+        const priceColor = s.chg > 0 ? 'text-red-500' : (s.chg < 0 ? 'text-emerald-500' : 'text-[var(--foreground)]');
+        const sign = s.chg > 0 ? '+' : '';
+        return `
+          <div onclick="selectStock('${s.code}')" class="p-3.5 cursor-pointer transition hover:bg-[var(--secondary)] ${isSelected ? 'stock-row-active' : ''}">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm">${s.code} ${s.name}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full ${getCatBadgeStyle(s.cat)}">${s.cat_label}</span>
+              </div>
+              <div class="text-right">
+                <span class="font-bold text-sm ${priceColor}">${s.close}</span>
+                <span class="text-xs ml-1 font-medium ${priceColor}">(${sign}${s.chg_pct}%)</span>
+              </div>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <span class="truncate pr-2">${getShortVerdict(s)}</span>
+              <span class="shrink-0 font-semibold text-[var(--foreground)]">評分 ${s.score}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderDetail();
+    }
+
+    function selectStock(code) {
+      const found = STOCKS_DATA.find(s => s.code === code);
+      if (found) {
+        selectedStock = found;
+        renderStockList();
+        if (window.innerWidth < 1024) {
+          const dp = document.getElementById('detailPanel');
+          if (dp) dp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    }
+
+    function renderDetail() {
+      const s = selectedStock;
+      const sign = s.chg > 0 ? '+' : '';
+      const priceColor = s.chg > 0 ? 'text-red-500' : (s.chg < 0 ? 'text-emerald-500' : 'text-[var(--foreground)]');
+
+      document.getElementById('detCodeName').textContent = `${s.code} ${s.name}`;
+      document.getElementById('detSector').textContent = s.sector;
+      const badge = document.getElementById('detCatBadge');
+      badge.textContent = s.cat_label;
+      badge.className = `px-2.5 py-0.5 text-xs font-semibold rounded-full ${getCatBadgeStyle(s.cat)}`;
+      document.getElementById('detDateLabel').textContent = `資料日期：${s.date} 收盤｜成交量：${s.vol.toLocaleString()} 張（20日均量 ${s.vma20.toLocaleString()} 張）`;
+
+      const priceEl = document.getElementById('detPrice');
+      priceEl.textContent = s.close;
+      priceEl.className = `text-2xl font-bold ${priceColor}`;
+
+      const chgEl = document.getElementById('detChg');
+      chgEl.textContent = `${sign}${s.chg} (${sign}${s.chg_pct}%)`;
+      chgEl.className = `text-sm font-semibold ${priceColor}`;
+      document.getElementById('detScore').textContent = `${s.score} / 100`;
+
+      // Plain-Language Diagnosis Box
+      const diagBox = document.getElementById('detDiagnosisBox');
+      if (s.cat === 'breakout') {
+        diagBox.className = 'p-3.5 rounded-lg border border-red-500/30 bg-red-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【標準起漲波・剛站上生命線】</strong><br/>
+          ${s.name} 目前股價 <strong>${s.close} 元</strong> 已經正式站上 20MA 月線（<strong>${s.ma20} 元</strong>），且與月線正乖離僅 <strong>+${s.bias20}%</strong>（落在 0%~+9% 的安全起漲區，還沒漲太遠）。近 3 日最大量比達 <strong>${s.vol_ratio_3d} 倍</strong>，過去 20 日表現領先大盤 0050 達 <strong>+${s.rs_vs_0050}%</strong>，屬於有大人照顧的強勢突破結構。<strong>操作紀律：進場後以跌破 ${s.stop_loss} 元（${s.stop_pct}%）作為硬性停損點。</strong>
+        `;
+      } else if (s.cat === 'squeeze') {
+        diagBox.className = 'p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【底部波動收斂 VCP・放自選股等第一根帶量紅K】</strong><br/>
+          ${s.name} 前期布林通道帶寬壓縮到僅 <strong>${s.pre_bb_w}%</strong>（代表籌碼沉澱、浮額洗清），目前股價 <strong>${s.close} 元</strong> 緊貼 20MA 月線（<strong>${s.ma20} 元</strong>，乖離僅 ${s.bias20}%），且近 20 日抗跌度領先大盤 <strong>+${s.rs_vs_0050}%</strong>。目前唯一欠缺的是「攻擊量」（今日量比僅 ${s.vol_ratio}x）。<strong>操作紀律：先加自選股觀察，一旦盤中或收盤站穩 ${(s.ma20 * 1.01).toFixed(1)} 元且成交量放大超過 ${(s.vma20 * 1.4).toFixed(0)} 張，就是標準起漲第一買點！</strong>
+        `;
+      } else if (s.cat === 'overextended') {
+        diagBox.className = 'p-3.5 rounded-lg border border-orange-500/30 bg-orange-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【強勢但短線正乖離過大・千萬別在今天追高！】</strong><br/>
+          ${s.name} 雖然極度強勢（單日大漲 +${s.chg_pct}%、領先大盤 +${s.rs_vs_0050}%），但請看背後數據：目前股價 <strong>${s.close} 元</strong> 距離 20MA 月線（<strong>${s.ma20} 元</strong>）正乖離已經高達 <strong>+${s.bias20}%</strong>（超過 +12% 警戒線）！<strong>教學提醒：散戶最常在這種連續大漲、新聞狂報時衝進去買，結果隔天遇到獲利了結洗盤馬上套牢。正確做法是等它量縮拉回 5MA（約 ${s.ma5} 元）或 10MA 不破再切入。</strong>
+        `;
+      } else if (s.cat === 'benchmark') {
+        diagBox.className = 'p-3.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【台股大盤溫度計・目前處於月線下整理期】</strong><br/>
+          0050 元大台灣50 代表台股大盤整體水位，目前收在 <strong>${s.close} 元</strong>，位於 20MA 月線（<strong>${s.ma20} 元</strong>）下方（乖離 ${s.bias20}%）。當大盤在月線下整理時，<strong>千萬不要亂買弱勢股，只挑選「比大盤早一步站上 20MA、RS 相對強弱為正」的抗跌領頭羊！</strong>
+        `;
+      } else {
+        diagBox.className = 'p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-sm leading-relaxed';
+        diagBox.innerHTML = `
+          <strong>💡 傻瓜趨勢結論：【空頭跌破生命線・嚴禁因為「跌很多很便宜」去接刀！】</strong><br/>
+          為什麼買股票會賠大錢？因為看到 ${s.name} 從高點跌下來覺得便宜去撿！請看背後數據：目前股價 <strong>${s.close} 元</strong> 遠低於 20MA 月線（<strong>${s.ma20} 元</strong>，負乖離達 <strong>${s.bias20}%</strong>），且月線斜率下彎（<strong>${s.ma20_slope}%</strong>）、落後大盤 <strong>${s.rs_vs_0050}%</strong>。上方全是套牢賣壓，<strong>在股價重新站回 20MA 之前，絕對不碰！</strong>
+        `;
+      }
+
+      // Render 4 Supporting Data Cards
+      const pass1 = s.bias20 >= 0 && s.bias20 <= 9.5;
+      const warn1 = s.bias20 > 9.5 || (s.bias20 >= -1.5 && s.bias20 < 0);
+      const pass2 = s.pre_bb_w <= 15.0;
+      const pass3 = s.vol_ratio >= 1.2 || s.vol_ratio_3d >= 1.3;
+      const pass4 = s.rs_vs_0050 > 0;
+
+      const cards = [
+        {
+          title: '① 趨勢生命線 (20MA 月線位置與乖離)',
+          badge: pass1 ? '✅ 安全起漲區' : (warn1 ? '⚠️ 乖離警戒/臨界' : '❌ 跌破生命線'),
+          badgeCls: pass1 ? 'text-red-500 bg-red-500/10' : (warn1 ? 'text-amber-500 bg-amber-500/10' : 'text-emerald-500 bg-emerald-500/10'),
+          valText: `現價 ${s.close} vs 月線 ${s.ma20} (乖離 ${s.bias20 > 0 ? '+' : ''}${s.bias20}%)`,
+          subText: `60MA 季線：${s.ma60} 元｜20MA 近5日斜率：${s.ma20_slope > 0 ? '+' : ''}${s.ma20_slope}%`,
+          explain: '【怎麼看】20MA 是台股波段生命線。股價剛站上 20MA 且正乖離在 0%~+8% 是最佳買點；若低於 20MA 代表空頭套牢，正乖離超過 +12% 則容易短線拉回。'
+        },
+        {
+          title: '② 底部籌碼沉澱 (布林帶寬 VCP 收斂度)',
+          badge: pass2 ? '✅ 底部壓縮極佳' : 'ℹ️ 波動已放大',
+          badgeCls: pass2 ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10',
+          valText: `起漲前最窄帶寬 ${s.pre_bb_w}% → 目前 ${s.curr_bb_w}%`,
+          subText: `合格標準：起漲前帶寬 < 15% 代表籌碼安靜鎖定`,
+          explain: '【怎麼看】真正的大波段起漲前，股價波動會越來越小（布林通道像束口袋一樣收緊），代表散戶沒耐心賣光了，隨後第一根帶量紅K開口向上就是起漲波。'
+        },
+        {
+          title: '③ 量能引爆確認 (今日量 ÷ 20日均量)',
+          badge: pass3 ? '✅ 有量能支持' : '⏳ 量縮等待放量',
+          badgeCls: pass3 ? 'text-red-500 bg-red-500/10' : 'text-amber-500 bg-amber-500/10',
+          valText: `今日量比 ${s.vol_ratio}x ｜近3日最大量比 ${s.vol_ratio_3d}x`,
+          subText: `今日 ${s.vol.toLocaleString()} 張 vs 20日均量 ${s.vma20.toLocaleString()} 張`,
+          explain: '【怎麼看】「股市裡什麼都能騙人，只有成交量不能騙人。」突破月線或盤整區時，量比達 1.3x~2.5x 代表法人/主力真金白銀買進；無量上漲容易是假突破。'
+        },
+        {
+          title: '④ 相對大盤強弱 (RS vs 0050) & RSI動能',
+          badge: pass4 ? '✅ 強於大盤主流' : '❌ 弱於大盤',
+          badgeCls: pass4 ? 'text-red-500 bg-red-500/10' : 'text-emerald-500 bg-emerald-500/10',
+          valText: `領先大盤 ${s.rs_vs_0050 > 0 ? '+' : ''}${s.rs_vs_0050}% ｜RSI(14) = ${s.rsi14}`,
+          subText: `合格標準：RS > 0%（比 0050 抗跌領漲）且 RSI 位於 50~75`,
+          explain: '【怎麼看】大盤跌時它不跌、大盤漲時它衝第一，這就是 RS 相對強弱 > 0% 的意義。買股票永遠要買資金正在匯聚的強勢股，別買落後補漲或破底股。'
+        }
+      ];
+
+      document.getElementById('supportCardsGrid').innerHTML = cards.map(c => `
+        <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)] space-y-1.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-semibold text-xs">${c.title}</span>
+            <span class="px-2 py-0.5 rounded text-xs font-semibold ${c.badgeCls}">${c.badge}</span>
+          </div>
+          <div class="text-sm font-bold">${c.valText}</div>
+          <div class="text-xs text-[var(--muted-foreground)]">${c.subText}</div>
+          <p class="text-xs text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] leading-relaxed">${c.explain}</p>
+        </div>
+      `).join('');
+
+      // Render Risk/Reward Discipline Calculator
+      const cap = parseFloat(document.getElementById('capitalInput').value) || 200000;
+      const shares = Math.max(1, Math.floor(cap / s.close));
+      const maxLossNTD = Math.round(shares * (s.close - s.stop_loss));
+      const targetGainNTD = Math.round(shares * (s.target_2r - s.close));
+
+      document.getElementById('riskCalcGrid').innerHTML = `
+        <div class="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--background)]">
+          <div class="text-xs text-[var(--muted-foreground)]">1. 建議觀察/進場基準價</div>
+          <div class="text-lg font-bold mt-0.5">${s.close} 元 <span class="text-xs font-normal text-[var(--muted-foreground)]">(可買約 ${shares.toLocaleString()} 股)</span></div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">ATR(14) 每日平均真實波動：±${s.atr14} 元</div>
+        </div>
+        <div class="p-3.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+          <div class="text-xs font-semibold text-emerald-500">2. 鐵律停損價 (跌破無條件出場)</div>
+          <div class="text-lg font-bold text-emerald-500 mt-0.5">${s.stop_loss} 元 (${s.stop_pct}%)</div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">萬一看錯最多賠：<strong>NT$ ${maxLossNTD.toLocaleString()}</strong>（絕不凹單）</div>
+        </div>
+        <div class="p-3.5 rounded-lg border border-red-500/30 bg-red-500/10">
+          <div class="text-xs font-semibold text-red-500">3. 第一波段目標價 (風報比 1 : 2.2)</div>
+          <div class="text-lg font-bold text-red-500 mt-0.5">${s.target_2r} 元 (+${s.target_pct}%)</div>
+          <div class="text-xs text-[var(--muted-foreground)] mt-1">達標預估獲利：<strong>+NT$ ${targetGainNTD.toLocaleString()}</strong>（未破20MA續抱）</div>
+        </div>
+      `;
+
+      drawStockChart();
+    }
+
+    function drawStockChart(hoverIndex = -1) {
+      const canvas = document.getElementById('stockCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const isLight = document.documentElement.classList.contains('light');
+      const gridColor = isLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.08)';
+      const textColor = isLight ? '#64748b' : '#94a3b8';
+
+      const bars = selectedStock.b; // [d, o, h, l, c, v, ma20, ma60, bb_up, bb_dn, vma20]
+      const n = bars.length;
+      const padL = 58, padR = 54, padT = 18, padB = 26;
+      const priceH = 210;
+      const volTop = padT + priceH + 18;
+      const volH = H - volTop - padB;
+      const plotW = W - padL - padR;
+
+      const showMA20 = document.getElementById('chkMA20').checked;
+      const showMA60 = document.getElementById('chkMA60').checked;
+      const showBB = document.getElementById('chkBB').checked;
+      const showStop = document.getElementById('chkStop').checked;
+
+      // Min/Max price
+      let minP = Infinity, maxP = -Infinity, maxV = 1;
+      bars.forEach(b => {
+        minP = Math.min(minP, b[3], showBB ? b[9] : b[3], showMA60 ? b[7] : b[3]);
+        maxP = Math.max(maxP, b[2], showBB ? b[8] : b[2], showMA60 ? b[7] : b[2]);
+        maxV = Math.max(maxV, b[5], b[10]);
+      });
+      if (showStop && selectedStock.cat !== 'downtrend') {
+        minP = Math.min(minP, selectedStock.stop_loss * 0.99);
+        maxP = Math.max(maxP, selectedStock.target_2r * 1.01);
+      }
+      const rangeP = Math.max(1, (maxP - minP) * 1.08);
+      minP -= rangeP * 0.04;
+      maxP += rangeP * 0.04;
+
+      const xOf = i => padL + (i + 0.5) * (plotW / n);
+      const yOfP = p => padT + priceH - ((p - minP) / (maxP - minP)) * priceH;
+      const yOfV = v => volTop + volH - (v / (maxV * 1.1)) * volH;
+
+      // Price horizontal grid lines
+      ctx.strokeStyle = gridColor;
+      ctx.fillStyle = textColor;
+      ctx.font = '12px sans-serif';
+      ctx.lineWidth = 1;
+      for (let g = 0; g <= 4; g++) {
+        const py = padT + (priceH / 4) * g;
+        const pVal = maxP - ((maxP - minP) / 4) * g;
+        ctx.beginPath();
+        ctx.moveTo(padL, py);
+        ctx.lineTo(W - padR, py);
+        ctx.stroke();
+        ctx.fillText(pVal.toFixed(pVal >= 500 ? 0 : 1), 6, py + 4);
+      }
+
+      // Divider between Price and Volume
+      ctx.beginPath();
+      ctx.moveTo(padL, volTop - 8);
+      ctx.lineTo(W - padR, volTop - 8);
+      ctx.stroke();
+      ctx.fillText('成交量(張)', 4, volTop + 12);
+
+      // Bollinger Band Shaded Area
+      if (showBB) {
+        ctx.fillStyle = isLight ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.12)';
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[8]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        for (let i = n - 1; i >= 0; i--) {
+          ctx.lineTo(xOf(i), yOfP(bars[i][9]));
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(168,85,247,0.45)';
+        ctx.setLineDash([3, 3]);
+        [8, 9].forEach(idx => {
+          ctx.beginPath();
+          bars.forEach((b, i) => {
+            const x = xOf(i), y = yOfP(b[idx]);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+      }
+
+      // Stop loss & Target horizontal lines
+      if (showStop && selectedStock.cat !== 'downtrend') {
+        const yStop = yOfP(selectedStock.stop_loss);
+        ctx.strokeStyle = '#10b981';
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padL, yStop);
+        ctx.lineTo(W - padR, yStop);
+        ctx.stroke();
+        ctx.fillStyle = '#10b981';
+        ctx.fillText(`停損 ${selectedStock.stop_loss}`, W - padR + 3, yStop + 4);
+
+        const yTarget = yOfP(selectedStock.target_2r);
+        ctx.strokeStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(padL, yTarget);
+        ctx.lineTo(W - padR, yTarget);
+        ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText(`目標 ${selectedStock.target_2r}`, W - padR + 3, yTarget + 4);
+        ctx.setLineDash([]);
+      }
+
+      //Candlesticks & Volume bars (Taiwan style: Red = Close >= Open, Green = Close < Open)
+      const barW = Math.max(4, (plotW / n) * 0.62);
+      bars.forEach((b, i) => {
+        const [d, o, h, l, c, v] = b;
+        const x = xOf(i);
+        const isUp = c >= o;
+        const color = isUp ? '#ef4444' : '#10b981';
+
+        // Wick
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, yOfP(h));
+        ctx.lineTo(x, yOfP(l));
+        ctx.stroke();
+
+        // Body
+        const yOpen = yOfP(o);
+        const yClose = yOfP(c);
+        const topY = Math.min(yOpen, yClose);
+        const bodyH = Math.max(2, Math.abs(yClose - yOpen));
+        ctx.fillStyle = color;
+        ctx.fillRect(x - barW / 2, topY, barW, bodyH);
+
+        // Volume bar
+        const vy = yOfV(v);
+        ctx.fillStyle = isUp ? 'rgba(239,68,68,0.75)' : 'rgba(16,185,129,0.75)';
+        ctx.fillRect(x - barW / 2, vy, barW, volTop + volH - vy);
+
+        // Date labels every 9 bars
+        if (i % 9 === 0 || i === n - 1) {
+          ctx.fillStyle = textColor;
+          ctx.fillText(d, x - 14, H - 6);
+        }
+      });
+
+      // Volume MA20 line
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      bars.forEach((b, i) => {
+        const x = xOf(i), y = yOfV(b[10]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // MA60 Line
+      if (showMA60) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[7]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // MA20 Line
+      if (showMA20) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        bars.forEach((b, i) => {
+          const x = xOf(i), y = yOfP(b[6]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+
+      // Hover crosshair
+      if (hoverIndex >= 0 && hoverIndex < n) {
+        const hx = xOf(hoverIndex);
+        ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.45)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(hx, padT);
+        ctx.lineTo(hx, volTop + volH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const hb = bars[hoverIndex];
+        const info = document.getElementById('chartHoverInfo');
+        info.innerHTML = `📅 <strong>${hb[0]}</strong>｜開 <strong>${hb[1]}</strong> 高 <strong>${hb[2]}</strong> 低 <strong>${hb[3]}</strong> 收 <strong>${hb[4]}</strong>｜量 <strong>${hb[5].toLocaleString()}張</strong> (均量 ${hb[10].toLocaleString()}張)｜20MA: <strong>${hb[6]}</strong>｜60MA: <strong>${hb[7]}</strong>`;
+      }
+    }
+
+    // Attach mousemove on stockCanvas
+    document.addEventListener('DOMContentLoaded', () => {
+      const canvas = document.getElementById('stockCanvas');
+      canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const mx = (e.clientX - rect.left) * scaleX;
+        const padL = 58, padR = 54;
+        const plotW = canvas.width - padL - padR;
+        const n = selectedStock.b.length;
+        const idx = Math.floor(((mx - padL) / plotW) * n);
+        if (idx >= 0 && idx < n) drawStockChart(idx);
+      });
+      canvas.addEventListener('mouseleave', () => {
+        drawStockChart(-1);
+      });
+      function handleTouch(e) {
+        if (!e.touches || !e.touches.length) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const mx = (e.touches[0].clientX - rect.left) * scaleX;
+        const padL = 58, padR = 54;
+        const plotW = canvas.width - padL - padR;
+        const n = selectedStock.b.length;
+        const idx = Math.floor(((mx - padL) / plotW) * n);
+        if (idx >= 0 && idx < n) drawStockChart(idx);
+      }
+      canvas.addEventListener('touchstart', handleTouch, { passive: true });
+      canvas.addEventListener('touchmove', handleTouch, { passive: true });
+      renderStockList();
+    });
+
+    // ==================== TAB 2: INTERACTIVE LESSONS ====================
+    const LESSONS = [
+      {
+        title: '第 1 課：真起漲 vs. 假突破（為什麼散戶一買就套？）',
+        caption: '左半部為「底部量縮橫盤後，第一根帶 2 倍量突破頸線（真起漲）」；右半部為「已經大漲一段後，爆出天量卻收長上影線（主力出貨假突破）」。',
+        points: [
+          { tag: '✅ 真起漲特徵', text: '突破前至少橫盤整理 10~20 天，成交量像死水一樣萎縮；突破頸線當天收「實體長紅K」且成交量達到 20日均量的 1.5~2.5 倍。' },
+          { tag: '❌ 假突破陷阱', text: '股價已經連漲好幾天、離 20MA 很遠，利多新聞見報當天開高走低收「爆天量長上影線」或「無量虛漲」，散戶衝進去剛好幫主力洗碗。' },
+          { tag: '🎯 實戰口訣', text: '「底部爆量長紅是起漲，高檔爆量收黑是逃命。」買進前先看它在起漲前有沒有經過安靜的底部整理！' }
+        ]
+      },
+      {
+        title: '第 2 課：一條線定生死 — 20MA（月線）與正乖離法則',
+        caption: '黃線為 20MA 月線（波段生命線）。買點 A 為「月線走平翻揚、股價剛帶量站上」；買點 B 為「上漲後首次量縮回測 20MA 不破」；紅叉 C 為「正乖離 >12% 追高區」。',
+        points: [
+          { tag: '💡 為什麼看 20MA？', text: '一個月大約有 20 個交易日，20MA 代表「過去一個月買進這檔股票所有人的平均成本」。站上 20MA 代表近一個月買的人全數賺錢，沒有解套賣壓！' },
+          { tag: '📏 正乖離率安全法則', text: '乖離率 = (現價 - 20MA) ÷ 20MA。當正乖離在 0% ~ +8% 內屬於安全的起漲初升段；超過 +12%~+15% 代表短線漲太急，隨時會拉回修正。' },
+          { tag: '🛑 鐵律停損線', text: '只要收盤價正式跌破 20MA 且隔日無法站回，無論賺賠先出場觀望，絕對不會發生「小賠變腰斬」的悲劇。' }
+        ]
+      },
+      {
+        title: '第 3 課：VCP 波動率收斂（看懂主力偷偷吃貨的痕跡）',
+        caption: '紫色通道為布林通道 (Bollinger Bands)。注意起漲前波動從 -18% → -9% → -4% 越來越窄（VCP 收斂），最後帶量突破上軌展開主升段！',
+        points: [
+          { tag: '🔍 什麼是 VCP 收斂？', text: '美國傳奇交易冠軍 Mark Minervini 提出的型態：主力在底部吸籌時，不希望把股價拉高增加成本，所以股價震盪幅度會一波比一波小，布林帶寬壓縮到極致。' },
+          { tag: '⏳ 如何在起漲前卡位？', text: '切到我們的「⏳ 底部收斂・蓄勢待發」分類（如台積電、富邦金、國泰金），先把布林帶寬 < 12% 的股票放進自選名單，設好突破價警示。' },
+          { tag: '🚀 出手時機', text: '不用在盤整時進去浪費時間等，等到某天成交量突然放大 > 1.5 倍且紅 K 突破盤整區上緣的那一刻，精準出手！' }
+        ]
+      },
+      {
+        title: '第 4 課：解決「賺小賠大」— 2×ATR 停損與波段抱單法',
+        caption: '進場後設定「現價 - 2×ATR」或「20MA 下方 1.5%」為綠色停損底線；只要紅K沿著 20MA 往上走，就算中間有小綠K洗盤也絕不提早下車！',
+        points: [
+          { tag: '💔 散戶賠錢真相', text: '90% 散戶不是看錯方向，而是「對的時候賺 5% 就怕回吐跑掉，錯的時候跌 25% 還在問要不要攤平」，做對 4 次不夠賠 1 次大虧！' },
+          { tag: '🛡️ 什麼是 ATR 停損？', text: 'ATR（真實波動幅度均值）衡量一檔股票每天正常洗盤的震盪大小。把停損設在 1.8~2 倍 ATR 外，既不會被日常小震盪洗掉，又能把單筆虧損鎖死在 -5%~-7%。' },
+          { tag: '🏆 抱住主升段的秘訣', text: '進場後把眼光從「今天賺幾塊」移開，改成「收盤有沒有跌破 20MA？」。只要沒跌破 20MA，就讓獲利自己奔跑！' }
+        ]
+      }
+    ];
+
+    function selectLesson(idx) {
+      currentLesson = idx;
+      document.querySelectorAll('#lessonButtons .lesson-btn').forEach((btn, i) => {
+        btn.classList.toggle('filter-active', i === idx);
+      });
+      const les = LESSONS[idx];
+      document.getElementById('lessonChartTitle').textContent = les.title;
+      document.getElementById('lessonChartCaption').textContent = les.caption;
+      document.getElementById('lessonContentBox').innerHTML = les.points.map(p => `
+        <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--background)] space-y-1">
+          <div class="font-bold text-sm">${p.tag}</div>
+          <p class="text-xs text-[var(--muted-foreground)] leading-relaxed">${p.text}</p>
+        </div>
+      `).join('');
+      drawLessonCanvas(idx);
+    }
+
+    function drawLessonCanvas(idx) {
+      const canvas = document.getElementById('lessonCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+      ctx.fillStyle = isLight ? '#334155' : '#cbd5e1';
+      ctx.font = '12px sans-serif';
+
+      for (let g = 1; g <= 4; g++) {
+        ctx.beginPath();
+        ctx.moveTo(20, (H / 5) * g);
+        ctx.lineTo(W - 20, (H / 5) * g);
+        ctx.stroke();
+      }
+
+      if (idx === 0) {
+        // Lesson 0: True breakout vs False breakout
+        ctx.strokeStyle = '#f59e0b';
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(30, 150); ctx.lineTo(310, 150); ctx.stroke();
+        ctx.fillText('底部盤整頸線壓力', 40, 142);
+
+        const leftCandles = [
+          [50, 175, 168, 20], [80, 170, 176, 18], [110, 174, 169, 15],
+          [140, 171, 166, 14], [170, 166, 162, 16], [200, 163, 125, 68],
+          [230, 126, 105, 52], [260, 108, 85, 48]
+        ];
+        leftCandles.forEach(([x, o, c, v]) => {
+          const up = c <= o;
+          ctx.fillStyle = up ? '#ef4444' : '#10b981';
+          ctx.strokeStyle = ctx.fillStyle;
+          ctx.beginPath(); ctx.moveTo(x, Math.min(o, c) - 8); ctx.lineTo(x, Math.max(o, c) + 8); ctx.stroke();
+          ctx.fillRect(x - 7, Math.min(o, c), 14, Math.max(4, Math.abs(c - o)));
+          ctx.fillRect(x - 7, H - 20 - v, 14, v);
+        });
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('🎯 真起漲點 (帶2倍量長紅突破頸線)', 140, 70);
+
+        // Right half: False breakout at high
+        const rightCandles = [
+          [390, 160, 130, 35], [425, 130, 95, 42], [460, 95, 72, 48],
+          [495, 70, 88, 85], [530, 90, 130, 50], [565, 130, 165, 40]
+        ];
+        rightCandles.forEach(([x, o, c, v], i) => {
+          const up = c <= o;
+          ctx.fillStyle = up ? '#ef4444' : '#10b981';
+          ctx.strokeStyle = ctx.fillStyle;
+          const topWick = i === 3 ? 28 : Math.min(o, c) - 8;
+          ctx.beginPath(); ctx.moveTo(x, topWick); ctx.lineTo(x, Math.max(o, c) + 8); ctx.stroke();
+          ctx.fillRect(x - 7, Math.min(o, c), 14, Math.max(4, Math.abs(c - o)));
+          ctx.fillRect(x - 7, H - 20 - v, 14, v);
+        });
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('⚠️ 高檔爆天量長上影線 (主力出貨假突破)', 415, 22);
+      } else if (idx === 1) {
+        // Lesson 1: 20MA Lifeline & Bias
+        const maPts = [[40,220],[120,215],[200,195],[280,165],[360,145],[440,125],[520,115],[600,130]];
+        const pricePts = [[40,240],[120,225],[200,175],[280,105],[360,140],[440,95],[520,135],[600,185]];
+
+        ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3;
+        ctx.beginPath(); maPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+        ctx.fillStyle = '#f59e0b'; ctx.fillText('20MA 月線 (生命線)', 510, 105);
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+        ctx.beginPath(); pricePts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('✅ 買點A：剛帶量站上20MA (乖離+3%)', 145, 165);
+        ctx.fillText('✅ 買點B：回測20MA不破再轉強', 310, 162);
+        ctx.fillStyle = '#f97316';
+        ctx.fillText('❌ 追高陷阱：正乖離 >15% 短線急拉', 210, 88);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('🛑 停損出場：正式跌破20MA且月線下彎', 440, 205);
+      } else if (idx === 2) {
+        // Lesson 2: VCP Squeeze
+        const vcpPts = [[40,80],[90,220],[140,100],[190,190],[240,120],[290,165],[340,132],[390,150],[440,138],[490,95],[550,60],[610,40]];
+        ctx.strokeStyle = '#a855f7'; ctx.setLineDash([4,4]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(40,75); ctx.lineTo(440,132); ctx.lineTo(610,35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(40,225); ctx.lineTo(440,155); ctx.lineTo(610,130); ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); vcpPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.fillStyle = isLight ? '#334155' : '#e2e8f0';
+        ctx.fillText('第1波震盪 (-18%)', 60, 242);
+        ctx.fillText('第2波收斂 (-9%)', 175, 210);
+        ctx.fillText('第3波極度壓縮 (-3%)', 320, 175);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('🚀 帶量突破收斂末端 (最佳起漲買點!)', 430, 80);
+      } else {
+        // Lesson 3: 2x ATR Stop & Trend Riding
+        const ridePts = [[60,210],[130,175],[200,188],[270,145],[340,158],[410,110],[480,122],[550,75],[620,60]];
+        const stopPts = [[60,245],[130,215],[200,215],[270,180],[340,180],[410,145],[480,145],[550,108],[620,95]];
+
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ridePts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+
+        ctx.strokeStyle = '#10b981'; ctx.setLineDash([5,4]); ctx.lineWidth = 2;
+        ctx.beginPath(); stopPts.forEach(([x,y],i)=> i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)); ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('📈 股價沿 20MA 階梯式創高 (中間小回檔不破停損線就抱牢!)', 160, 55);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText('🛡️ 2×ATR 移動停損保護線 (隨波段墊高，鎖住獲利)', 260, 205);
+      }
+    }
+
+    function updateExpectancySim() {
+      const wr = parseInt(document.getElementById('simWinRate').value, 10);
+      const win = parseInt(document.getElementById('simAvgWin').value, 10);
+      const loss = parseInt(document.getElementById('simAvgLoss').value, 10);
+
+      document.getElementById('simWinRateVal').textContent = wr + '%';
+      document.getElementById('simAvgWinVal').textContent = '+' + win + '%';
+      document.getElementById('simAvgLossVal').textContent = '-' + loss + '%';
+
+      const exp = (wr / 100) * win - ((100 - wr) / 100) * loss;
+      const rr = (win / loss).toFixed(2);
+      const banner = document.getElementById('simResultBanner');
+
+      if (exp > 0) {
+        banner.className = 'p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-sm flex flex-col md:flex-row md:items-center justify-between gap-3';
+        banner.innerHTML = `
+          <div>
+            <strong class="text-red-500 text-base">✅ 正期望值系統：每交易 10 次，平均複合期望報酬 +${(exp * 10).toFixed(1)}%</strong>
+            <p class="text-xs text-[var(--muted-foreground)] mt-0.5">風報比 (賺賠比) = <strong>1 : ${rr}</strong>｜單筆期望值 = <strong>+${exp.toFixed(2)}%</strong>。只要嚴守 -${loss}% 停損並抱住 +${win}% 波段，長期必然穩定獲利！</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white self-start md:self-center">長期穩健獲利</span>
+        `;
+      } else {
+        banner.className = 'p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm flex flex-col md:flex-row md:items-center justify-between gap-3';
+        banner.innerHTML = `
+          <div>
+            <strong class="text-emerald-500 text-base">⚠️ 負期望值陷阱：每交易 10 次，平均期望虧損 ${(exp * 10).toFixed(1)}%</strong>
+            <p class="text-xs text-[var(--muted-foreground)] mt-0.5">風報比 = <strong>1 : ${rr}</strong>｜單筆期望值 = <strong>${exp.toFixed(2)}%</strong>。這就是散戶「賺小賠大」虧錢的主因：就算勝率 ${wr}%，只要看錯不設停損，長期一定賠錢！</p>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white self-start md:self-center">賺小賠大・長期虧損</span>
+        `;
+      }
+    }
+
+    // ==================== TAB 3: DIY STOCK CHECKER ====================
+    function runDiyCheck() {
+      const name = document.getElementById('diyName').value || '自選股';
+      const p = parseFloat(document.getElementById('diyPrice').value) || 100;
+      const ma20 = parseFloat(document.getElementById('diyMA20').value) || 100;
+      const ma60 = parseFloat(document.getElementById('diyMA60').value) || 100;
+      const vol = parseFloat(document.getElementById('diyVol').value) || 1000;
+      const vma20 = parseFloat(document.getElementById('diyVMA20').value) || 1000;
+
+      const bias20 = ((p / ma20 - 1) * 100).toFixed(2);
+      const volR = (vol / Math.max(1, vma20)).toFixed(2);
+      const stopPrice = (ma20 * 0.98).toFixed(1);
+      const stopPct = (((stopPrice / p) - 1) * 100).toFixed(2);
+      const targetPrice = (p + (p - stopPrice) * 2.2).toFixed(1);
+
+      let verdict = '', boxCls = '';
+      if (p >= ma20 && bias20 <= 8.5 && volR >= 1.3 && ma20 >= ma60 * 0.98) {
+        verdict = `🔥 【標準起漲波訊號】${name} 目前站穩 20MA 生命線（正乖離 +${bias20}% 尚在安全範圍），且成交量放大至 20日均量的 ${volR} 倍，屬於帶量突破結構！`;
+        boxCls = 'border-red-500/40 bg-red-500/10';
+      } else if (p >= ma20 && bias20 > 10.0) {
+        verdict = `⚠️ 【短線正乖離過大・勿追高】${name} 雖然在 20MA 之上，但正乖離已達 +${bias20}%（超過 +10% 警戒區），現在追買風險高，建議等量縮拉回 5MA/10MA 再看。`;
+        boxCls = 'border-amber-500/40 bg-amber-500/10';
+      } else if (p >= ma20 * 0.985 && volR < 1.3) {
+        verdict = `⏳ 【底部量縮整理・等待補量】${name} 目前緊貼 20MA（乖離 ${bias20}%），但今日量比僅 ${volR} 倍（未達 1.3~1.5 倍攻擊量），建議先放自選股，等帶量長紅出現再出手。`;
+        boxCls = 'border-blue-500/40 bg-blue-500/10';
+      } else {
+        verdict = `❄️ 【跌破 20MA 生命線・空頭觀望】${name} 目前股價低於 20MA 月線（乖離 ${bias20}%），上方皆為套牢賣壓，切勿因為覺得便宜去摸底接刀！`;
+        boxCls = 'border-emerald-500/40 bg-emerald-500/10';
+      }
+
+      const box = document.getElementById('diyResultBox');
+      box.className = `p-4 rounded-xl border text-sm space-y-2 ${boxCls}`;
+      box.innerHTML = `
+        <div class="font-bold text-base">${verdict}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-xs">
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>20MA 乖離率：</strong> ${bias20 > 0 ? '+' : ''}${bias20}% （安全起漲區為 0% ~ +8%）
+          </div>
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>成交量爆發比：</strong> ${volR} 倍 （真突破需 ≥ 1.3 ~ 1.5 倍均量）
+          </div>
+          <div class="p-2.5 rounded bg-[var(--card)] border border-[var(--border)]">
+            <strong>防守停損價：</strong> 跌破 ${stopPrice} 元 (${stopPct}%) 無條件停損｜波段目標：${targetPrice} 元
+          </div>
+        </div>
+      `;
+    }
+  
+    function toggleTheme() {
+      document.documentElement.classList.toggle('light');
+      drawStockChart();
+      if (!document.getElementById('tab-academy').classList.contains('hidden')) {
+        drawLessonCanvas(currentLesson);
+      }
+    }
+
+  </script>
+</body>
+</html>

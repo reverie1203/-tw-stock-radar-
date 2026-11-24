@@ -1,0 +1,8 @@
+{
+  "name": "台股起漲波傻瓜雷達",
+  "short_name": "台股起漲雷達",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#ef4444"
+}
